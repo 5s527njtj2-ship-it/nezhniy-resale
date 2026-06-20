@@ -224,6 +224,14 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // Получить все заявки (только владелец)
+// Удалить заявку (только владелец)
+app.delete('/api/orders/:id', requireOwner, (req, res) => {
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Заявка не найдена' });
+
+  db.prepare('DELETE FROM orders WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
 app.get('/api/orders', requireOwner, (req, res) => {
   const orders = db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all();
   const parsed = orders.map(o => ({ ...o, items: JSON.parse(o.items_json) }));

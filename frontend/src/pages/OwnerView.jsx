@@ -108,6 +108,18 @@ export default function OwnerView() {
     }
   }
 
+  async function handleDeleteOrder(id) {
+    if (!window.confirm('Удалить эту заявку?')) return
+    try {
+      await ownerFetch(`/orders/${id}`, { method: 'DELETE' }, password)
+      setOrders(prev => prev.filter(o => o.id !== id))
+      setStats(prev => ({ ...prev, totalOrders: Math.max((prev.totalOrders||1)-1, 0) }))
+      showToast('Заявка удалена', 'success')
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
   function exportCSV(type) {
     const base = import.meta.env.VITE_API_URL || '/api'
     const url = `${base}/export/${type}`
@@ -306,7 +318,10 @@ export default function OwnerView() {
                       <div className="order-name">{order.buyer_name}</div>
                       <a href={`tel:${order.phone}`} className="order-phone">📞 {order.phone}</a>
                     </div>
-                    <div className="order-date">{order.created_at}</div>
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
+                      <div className="order-date">{order.created_at}</div>
+                      <button className="delete-btn" onClick={() => handleDeleteOrder(order.id)}>🗑</button>
+                    </div>
                   </div>
                   <div className="order-arts">Артикулы: <span>{order.arts}</span></div>
                   <div className="order-total">{order.total.toLocaleString('ru-RU')} ₽</div>
