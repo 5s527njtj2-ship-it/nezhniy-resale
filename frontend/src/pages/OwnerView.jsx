@@ -73,7 +73,7 @@ export default function OwnerView() {
       Object.entries(form).forEach(([k, v]) => fd.append(k, v))
       if (photoFile) fd.append('photo', photoFile)
 
-      const res = await fetch('/api/items', {
+      const res = await fetch(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/items` : '/api/items', {
         method: 'POST',
         headers: { 'x-owner-password': password },
         body: fd,
@@ -109,7 +109,8 @@ export default function OwnerView() {
   }
 
   function exportCSV(type) {
-    const url = `/api/export/${type}`
+    const base = import.meta.env.VITE_API_URL || '/api'
+    const url = `${base}/export/${type}`
     const a = document.createElement('a')
     a.href = url
     a.setAttribute('download', '')
