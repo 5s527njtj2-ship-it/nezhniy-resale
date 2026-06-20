@@ -1,0 +1,104 @@
+.item-card {
+  background: var(--white);
+  border-radius: 0;
+  overflow: hidden;
+  transition: opacity .15s;
+}
+.item-card:active { opacity: 0.85; }
+
+.item-photo {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+.item-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.item-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  background: var(--bg-secondary);
+  opacity: 0.5;
+}
+
+.add-btn {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 1px solid var(--black);
+  color: var(--black);
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+.add-btn:active { transform: scale(0.9); }
+.add-btn.in-cart {
+  background: var(--black);
+  color: #fff;
+  font-size: 14px;
+}
+
+.item-body { padding: 12px 4px 4px; }
+
+.item-name {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 5px;
+  letter-spacing: 0.1px;
+}
+.item-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--black);
+  margin-bottom: 7px;
+  letter-spacing: 0.2px;
+}
+.item-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 5px;
+}
+.meta-size {
+  font-size: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0;
+  border-radius: 0;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.meta-cond {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.item-art {
+  font-size: 10px;
+  color: var(--text-hint);
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.2px;
+}
