@@ -21,7 +21,8 @@ app.use(cors({
     process.env.FRONTEND_URL,
     'http://localhost:5173', // для разработки
   ],
-  methods: ['GET', 'POST', 'DELETE'],
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-owner-password'],
 }));
 
 app.use(express.json());
