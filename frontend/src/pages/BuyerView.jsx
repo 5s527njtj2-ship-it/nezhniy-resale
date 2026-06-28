@@ -30,8 +30,15 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
       if (search.trim()) params.set('search', search.trim())
       const data = await apiFetch(`/items?${params}`)
       const prefix = SECTION_PREFIX[section]
+      const hasPrefix = i => i.category.startsWith('w-') || i.category.startsWith('m-') || i.category.startsWith('k-') || i.category === 'home'
       const filtered = subcategory === 'all'
-        ? data.filter(i => prefix === 'home' ? i.category === 'home' : i.category.startsWith(prefix))
+        ? data.filter(i => {
+            if (prefix === 'home') return i.category === 'home'
+            if (i.category.startsWith(prefix)) return true
+            // товары со старыми категориями (без префикса) по умолчанию показываем в разделе "Женское"
+            if (section === 'women' && !hasPrefix(i)) return true
+            return false
+          })
         : data
       setItems(filtered)
     } catch (e) {
