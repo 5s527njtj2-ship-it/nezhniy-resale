@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react'
 import BuyerView from './pages/BuyerView.jsx'
 import OwnerView from './pages/OwnerView.jsx'
+import AboutModal from './components/AboutModal.jsx'
+import PrivacyConsent from './components/PrivacyConsent.jsx'
 import './App.css'
+
+const CONSENT_KEY = 'nr_privacy_consent'
 
 export default function App() {
   const [mode, setMode] = useState('buyer') // 'buyer' | 'owner'
   const [cart, setCart] = useState([])
+  const [showAbout, setShowAbout] = useState(false)
+  const [consentGiven, setConsentGiven] = useState(true) // по умолчанию true, проверим в useEffect
 
   // Применяем тему Telegram
   useEffect(() => {
@@ -18,6 +24,23 @@ export default function App() {
       }
     }
   }, [])
+
+  // Проверяем согласие на обработку персональных данных
+  useEffect(() => {
+    try {
+      const given = sessionStorage.getItem(CONSENT_KEY)
+      setConsentGiven(given === 'true')
+    } catch {
+      setConsentGiven(true) // если storage недоступен — не блокируем доступ
+    }
+  }, [])
+
+  function handleAcceptConsent() {
+    try {
+      sessionStorage.setItem(CONSENT_KEY, 'true')
+    } catch {}
+    setConsentGiven(true)
+  }
 
   function addToCart(item) {
     setCart(prev => {
@@ -32,6 +55,10 @@ export default function App() {
 
   function clearCart() {
     setCart([])
+  }
+
+  if (!consentGiven) {
+    return <PrivacyConsent onAccept={handleAcceptConsent} />
   }
 
   return (
@@ -54,6 +81,9 @@ export default function App() {
           >
             Владелец
           </button>
+          <button onClick={() => setShowAbout(true)}>
+            О нас
+          </button>
         </div>
       </header>
 
@@ -69,6 +99,8 @@ export default function App() {
           <OwnerView />
         )}
       </main>
+
+      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
     </div>
   )
 }

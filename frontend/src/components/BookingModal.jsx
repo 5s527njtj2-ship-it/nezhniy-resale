@@ -48,6 +48,10 @@ export default function BookingModal({ cart, onClose, onSuccess }) {
           <span>Вещи:</span> <span className="arts-list">{arts}</span>
         </div>
 
+        <div className="booking-notice">
+          ⏱ Вещи бронируются на 1 час перед личной встречей, либо на срок по индивидуальной договорённости с продавцом.
+        </div>
+
         <div className="modal-body">
           <label>
             <span>Ваше имя *</span>
