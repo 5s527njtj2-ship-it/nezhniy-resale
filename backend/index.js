@@ -281,6 +281,17 @@ app.delete('/api/orders/:id', requireOwner, async (req, res) => {
   }
 });
 
+// Отметить все заявки как просмотренные (только владелец)
+app.post('/api/orders/mark-viewed', requireOwner, async (req, res) => {
+  try {
+    await pool.query('UPDATE orders SET viewed = TRUE WHERE viewed = FALSE');
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при обновлении заявок' });
+  }
+});
+
 // ─────────────────────────────────────────────
 // ROUTES — Экспорт CSV (только владелец)
 // ─────────────────────────────────────────────
@@ -292,10 +303,12 @@ app.get('/api/export/catalog', requireOwner, async (req, res) => {
       top:'Верх', bottom:'Низ', dress:'Платья и юбки', outer:'Верхняя одежда',
       shoes:'Обувь', bags:'Сумки', acc:'Аксессуары', sport:'Спорт', home:'Интерьер'
     };
-    const csvRows = [['Артикул','Название','Категория','Размер','Цена','Состояние','Дата']];
+    const csvRows = [['Артикул','Название','Категория','Размер','Цена','Состояние','Дата','Фото (ссылка)','Фото (формула для Google Sheets)']];
     items.forEach(i => csvRows.push([
       i.art, i.name, CATEGORIES[i.category] || i.category,
-      i.size, i.price, i.condition, i.created_at
+      i.size, i.price, i.condition, i.created_at,
+      i.photo || '',
+      i.photo ? `=IMAGE("${i.photo}")` : ''
     ]));
     const csv = '\uFEFF' + csvRows.map(r =>
       r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
@@ -345,10 +358,12 @@ app.get('/api/stats', requireOwner, async (req, res) => {
   try {
     const { rows: itemRows } = await pool.query('SELECT COUNT(*) as c, COALESCE(SUM(price),0) as s FROM items');
     const { rows: orderRows } = await pool.query('SELECT COUNT(*) as c FROM orders');
+    const { rows: unviewedRows } = await pool.query('SELECT COUNT(*) as c FROM orders WHERE viewed = FALSE');
     res.json({
       totalItems: parseInt(itemRows[0].c),
       totalOrders: parseInt(orderRows[0].c),
       totalSum: parseInt(itemRows[0].s),
+      unviewedOrders: parseInt(unviewedRows[0].c),
     });
   } catch (err) {
     console.error(err);

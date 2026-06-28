@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { ownerFetch, apiFetch, getPhotoUrl } from '../api.js'
-import { CATEGORIES, CATEGORIES_MAP, CONDITIONS, COND_COLORS, SIZES } from '../constants.js'
+import { CATEGORIES, CATEGORIES_MAP, CONDITIONS, COND_COLORS, getSizesForCategory } from '../constants.js'
 import './OwnerView.css'
 
 export default function OwnerView() {
@@ -21,6 +21,7 @@ export default function OwnerView() {
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
   const [adding, setAdding] = useState(false)
+  const [newOrdersNotice, setNewOrdersNotice] = useState(0)
   const fileRef = useRef()
 
   async function login() {
@@ -28,13 +29,13 @@ export default function OwnerView() {
     try {
       await apiFetch('/auth/check', { method: 'POST', body: JSON.stringify({ password }) })
       setAuthed(true)
-      loadAll()
+      loadAll(true)
     } catch {
       setAuthError('Неверный пароль')
     }
   }
 
-  async function loadAll() {
+  async function loadAll(isInitialLogin = false) {
     setLoading(true)
     try {
       const [itemsData, ordersData, statsData] = await Promise.all([
@@ -45,6 +46,9 @@ export default function OwnerView() {
       setItems(itemsData)
       setOrders(ordersData)
       setStats(statsData)
+      if (isInitialLogin && statsData.unviewedOrders > 0) {
+        setNewOrdersNotice(statsData.unviewedOrders)
+      }
     } catch (e) {
       showToast(e.message)
     } finally {
@@ -120,6 +124,19 @@ export default function OwnerView() {
     }
   }
 
+  async function handleOpenOrdersTab() {
+    setTab('orders')
+    setNewOrdersNotice(0)
+    if (stats.unviewedOrders > 0) {
+      try {
+        await ownerFetch('/orders/mark-viewed', { method: 'POST' }, password)
+        setStats(prev => ({ ...prev, unviewedOrders: 0 }))
+      } catch {
+        // тихо игнорируем — не критично, если отметка не прошла
+      }
+    }
+  }
+
   function exportCSV(type) {
     const base = import.meta.env.VITE_API_URL || '/api'
     const url = `${base}/export/${type}`
@@ -166,6 +183,14 @@ export default function OwnerView() {
   // ── OWNER PANEL ──
   return (
     <div className="owner-view">
+      {newOrdersNotice > 0 && (
+        <div className="new-orders-banner" onClick={handleOpenOrdersTab}>
+          🔔 {newOrdersNotice === 1
+            ? 'Появилась новая заявка'
+            : `Появилось ${newOrdersNotice} новых заявок`} — нажмите, чтобы посмотреть
+        </div>
+      )}
+
       {/* Статистика */}
       <div className="stats-row">
         <div className="stat">
@@ -185,7 +210,10 @@ export default function OwnerView() {
       {/* Табы */}
       <div className="owner-tabs">
         <button className={tab === 'items' ? 'active' : ''} onClick={() => setTab('items')}>Товары</button>
-        <button className={tab === 'orders' ? 'active' : ''} onClick={() => setTab('orders')}>Заявки</button>
+        <button className={tab === 'orders' ? 'active' : ''} onClick={() => handleOpenOrdersTab()}>
+          Заявки
+          {stats.unviewedOrders > 0 && <span className="tab-badge">{stats.unviewedOrders}</span>}
+        </button>
       </div>
 
       {/* ── ТОВАРЫ ── */}
@@ -214,7 +242,7 @@ export default function OwnerView() {
                 </div>
                 <div className="form-group full">
                   <label>Категория</label>
-                  <select value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))}>
+                  <select value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value, size: getSizesForCategory(e.target.value)[0]}))}>
                     {CATEGORIES.filter(c => c.id !== 'all').map(c => (
                       <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
                     ))}
@@ -223,7 +251,7 @@ export default function OwnerView() {
                 <div className="form-group">
                   <label>Размер</label>
                   <select value={form.size} onChange={e => setForm(f => ({...f, size: e.target.value}))}>
-                    {SIZES.map(s => <option key={s}>{s}</option>)}
+                    {getSizesForCategory(form.category).map(s => <option key={s}>{s}</option>)}
                   </select>
                 </div>
                 <div className="form-group">

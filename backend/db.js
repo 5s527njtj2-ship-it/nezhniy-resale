@@ -30,8 +30,14 @@ async function initDb() {
       arts        TEXT    NOT NULL,
       total       INTEGER NOT NULL,
       items_json  TEXT    NOT NULL,
+      viewed      BOOLEAN NOT NULL DEFAULT FALSE,
       created_at  TIMESTAMP NOT NULL DEFAULT NOW()
     );
+  `);
+
+  // Миграция: добавляем колонку viewed, если таблица уже существовала без неё
+  await pool.query(`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS viewed BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
   await pool.query(`
