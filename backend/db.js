@@ -1,49 +1,52 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const { Pool } = require('pg');
 
-const DB_PATH = path.join(__dirname, 'db', 'resale.db');
-const db = new Database(DB_PATH);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
 
-// Включаем WAL для лучшей производительности
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+// Инициализация таблиц при старте
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS items (
+      id          SERIAL PRIMARY KEY,
+      art         TEXT    NOT NULL UNIQUE,
+      name        TEXT    NOT NULL,
+      category    TEXT    NOT NULL,
+      size        TEXT    NOT NULL DEFAULT 'One size',
+      price       INTEGER NOT NULL,
+      condition   TEXT    NOT NULL,
+      photo       TEXT,
+      created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
 
-// Таблица товаров
-db.exec(`
-  CREATE TABLE IF NOT EXISTS items (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    art         TEXT    NOT NULL UNIQUE,
-    name        TEXT    NOT NULL,
-    category    TEXT    NOT NULL,
-    size        TEXT    NOT NULL DEFAULT 'One size',
-    price       INTEGER NOT NULL,
-    condition   TEXT    NOT NULL,
-    photo       TEXT,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
-  );
-`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id          SERIAL PRIMARY KEY,
+      buyer_name  TEXT    NOT NULL,
+      phone       TEXT    NOT NULL,
+      comment     TEXT,
+      arts        TEXT    NOT NULL,
+      total       INTEGER NOT NULL,
+      items_json  TEXT    NOT NULL,
+      created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
 
-// Таблица заявок
-db.exec(`
-  CREATE TABLE IF NOT EXISTS orders (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    buyer_name  TEXT    NOT NULL,
-    phone       TEXT    NOT NULL,
-    comment     TEXT,
-    arts        TEXT    NOT NULL,
-    total       INTEGER NOT NULL,
-    items_json  TEXT    NOT NULL,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
-  );
-`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS counters (
+      key   TEXT PRIMARY KEY,
+      value INTEGER NOT NULL DEFAULT 0
+    );
+  `);
 
-// Счётчик артикулов
-db.exec(`
-  CREATE TABLE IF NOT EXISTS counters (
-    key   TEXT PRIMARY KEY,
-    value INTEGER NOT NULL DEFAULT 0
-  );
-  INSERT OR IGNORE INTO counters (key, value) VALUES ('art_counter', 0);
-`);
+  await pool.query(`
+    INSERT INTO counters (key, value) VALUES ('art_counter', 0)
+    ON CONFLICT (key) DO NOTHING;
+  `);
 
-module.exports = db;
+  console.log('✅ База данных готова');
+}
+
+module.exports = { pool, initDb };

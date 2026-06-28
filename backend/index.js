@@ -7,13 +7,21 @@ const multer = require('multer');
 const sharp = require('sharp');
 const { v4: uuidv4 } = require('uuid');
 const sgMail = require('@sendgrid/mail');
-const db = require('./db');
+const { createClient } = require('@supabase/supabase-js');
+const { pool, initDb } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // SendGrid
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+// Supabase Storage (для фото товаров)
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
+const BUCKET = 'item-photos';
 
 // CORS — разрешаем только наш фронтенд
 app.use(cors({
@@ -27,12 +35,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Статические файлы (загруженные фото)
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-app.use('/uploads', express.static(UPLOADS_DIR));
-
-// Multer — временное хранилище до обработки sharp
+// Multer — храним файл в памяти, дальше отправляем в Supabase Storage
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
@@ -46,11 +49,11 @@ const upload = multer({
 // Утилиты
 // ─────────────────────────────────────────────
 
-function nextArt() {
-  const update = db.prepare(`UPDATE counters SET value = value + 1 WHERE key = 'art_counter'`);
-  const select = db.prepare(`SELECT value FROM counters WHERE key = 'art_counter'`);
-  update.run();
-  const { value } = select.get();
+async function nextArt() {
+  const { rows } = await pool.query(
+    `UPDATE counters SET value = value + 1 WHERE key = 'art_counter' RETURNING value`
+  );
+  const value = rows[0].value;
   return `NR-${String(value).padStart(4, '0')}`;
 }
 
@@ -60,6 +63,27 @@ function requireOwner(req, res, next) {
     return res.status(403).json({ error: 'Неверный пароль' });
   }
   next();
+}
+
+async function uploadPhotoToStorage(buffer, filename) {
+  const webpBuffer = await sharp(buffer)
+    .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: 82 })
+    .toBuffer();
+
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(filename, webpBuffer, { contentType: 'image/webp' });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(filename);
+  return data.publicUrl;
+}
+
+async function deletePhotoFromStorage(filename) {
+  if (!filename) return;
+  await supabase.storage.from(BUCKET).remove([filename]);
 }
 
 async function sendOrderEmail(order) {
@@ -106,24 +130,30 @@ async function sendOrderEmail(order) {
 // ─────────────────────────────────────────────
 
 // Получить все товары (публично)
-app.get('/api/items', (req, res) => {
-  const { category, search } = req.query;
-  let query = 'SELECT * FROM items WHERE 1=1';
-  const params = [];
+app.get('/api/items', async (req, res) => {
+  try {
+    const { category, search } = req.query;
+    let query = 'SELECT * FROM items WHERE 1=1';
+    const params = [];
+    let idx = 1;
 
-  if (category && category !== 'all') {
-    query += ' AND category = ?';
-    params.push(category);
-  }
-  if (search) {
-    query += ' AND (LOWER(name) LIKE ? OR LOWER(art) LIKE ?)';
-    const q = `%${search.toLowerCase()}%`;
-    params.push(q, q);
-  }
+    if (category && category !== 'all') {
+      query += ` AND category = $${idx++}`;
+      params.push(category);
+    }
+    if (search) {
+      query += ` AND (LOWER(name) LIKE $${idx++} OR LOWER(art) LIKE $${idx++})`;
+      const q = `%${search.toLowerCase()}%`;
+      params.push(q, q);
+    }
 
-  query += ' ORDER BY created_at DESC';
-  const items = db.prepare(query).all(...params);
-  res.json(items);
+    query += ' ORDER BY created_at DESC';
+    const { rows } = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при загрузке товаров' });
+  }
 });
 
 // Добавить товар (только владелец)
@@ -135,24 +165,21 @@ app.post('/api/items', requireOwner, upload.single('photo'), async (req, res) =>
       return res.status(400).json({ error: 'Заполните все обязательные поля' });
     }
 
-    let photoFilename = null;
+    let photoUrl = null;
     if (req.file) {
-      photoFilename = `${uuidv4()}.webp`;
-      await sharp(req.file.buffer)
-        .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
-        .webp({ quality: 82 })
-        .toFile(path.join(UPLOADS_DIR, photoFilename));
+      const filename = `${uuidv4()}.webp`;
+      photoUrl = await uploadPhotoToStorage(req.file.buffer, filename);
     }
 
-    const art = nextArt();
-    const stmt = db.prepare(`
-      INSERT INTO items (art, name, category, size, price, condition, photo)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    const result = stmt.run(art, name, category, size || 'One size', parseInt(price), condition, photoFilename);
-    const item = db.prepare('SELECT * FROM items WHERE id = ?').get(result.lastInsertRowid);
+    const art = await nextArt();
+    const { rows } = await pool.query(
+      `INSERT INTO items (art, name, category, size, price, condition, photo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [art, name, category, size || 'One size', parseInt(price), condition, photoUrl]
+    );
 
-    res.status(201).json(item);
+    res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при добавлении товара' });
@@ -160,18 +187,24 @@ app.post('/api/items', requireOwner, upload.single('photo'), async (req, res) =>
 });
 
 // Удалить товар (только владелец)
-app.delete('/api/items/:id', requireOwner, (req, res) => {
-  const item = db.prepare('SELECT * FROM items WHERE id = ?').get(req.params.id);
-  if (!item) return res.status(404).json({ error: 'Товар не найден' });
+app.delete('/api/items/:id', requireOwner, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM items WHERE id = $1', [req.params.id]);
+    const item = rows[0];
+    if (!item) return res.status(404).json({ error: 'Товар не найден' });
 
-  // Удаляем фото с диска
-  if (item.photo) {
-    const photoPath = path.join(UPLOADS_DIR, item.photo);
-    if (fs.existsSync(photoPath)) fs.unlinkSync(photoPath);
+    if (item.photo) {
+      // photo хранит полный URL — извлекаем имя файла
+      const filename = item.photo.split('/').pop();
+      await deletePhotoFromStorage(filename);
+    }
+
+    await pool.query('DELETE FROM items WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при удалении товара' });
   }
-
-  db.prepare('DELETE FROM items WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
 });
 
 // ─────────────────────────────────────────────
@@ -187,9 +220,10 @@ app.post('/api/orders', async (req, res) => {
       return res.status(400).json({ error: 'Укажите имя, телефон и товары' });
     }
 
-    // Получаем актуальные данные товаров по артикулам
-    const placeholders = arts.map(() => '?').join(',');
-    const items = db.prepare(`SELECT * FROM items WHERE art IN (${placeholders})`).all(...arts);
+    const { rows: items } = await pool.query(
+      `SELECT * FROM items WHERE art = ANY($1)`,
+      [arts]
+    );
 
     if (!items.length) {
       return res.status(400).json({ error: 'Товары не найдены' });
@@ -197,26 +231,24 @@ app.post('/api/orders', async (req, res) => {
 
     const total = items.reduce((sum, i) => sum + i.price, 0);
 
-    const stmt = db.prepare(`
-      INSERT INTO orders (buyer_name, phone, comment, arts, total, items_json)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    const result = stmt.run(
-      buyer_name, phone, comment || '',
-      arts.join(', '), total,
-      JSON.stringify(items.map(i => ({ art: i.art, name: i.name, price: i.price })))
+    const { rows } = await pool.query(
+      `INSERT INTO orders (buyer_name, phone, comment, arts, total, items_json)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        buyer_name, phone, comment || '',
+        arts.join(', '), total,
+        JSON.stringify(items.map(i => ({ art: i.art, name: i.name, price: i.price })))
+      ]
     );
 
-    // Отправляем email владельцу
     try {
       await sendOrderEmail({ buyer_name, phone, comment, items, total });
     } catch (mailErr) {
       console.error('Ошибка отправки email:', mailErr.message);
-      // Не фейлим запрос из-за ошибки почты
     }
 
-    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json(order);
+    res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при создании заявки' });
@@ -224,55 +256,76 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // Получить все заявки (только владелец)
-// Удалить заявку (только владелец)
-app.delete('/api/orders/:id', requireOwner, (req, res) => {
-  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
-  if (!order) return res.status(404).json({ error: 'Заявка не найдена' });
-
-  db.prepare('DELETE FROM orders WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
+app.get('/api/orders', requireOwner, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
+    const parsed = rows.map(o => ({ ...o, items: JSON.parse(o.items_json) }));
+    res.json(parsed);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при загрузке заявок' });
+  }
 });
-app.get('/api/orders', requireOwner, (req, res) => {
-  const orders = db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all();
-  const parsed = orders.map(o => ({ ...o, items: JSON.parse(o.items_json) }));
-  res.json(parsed);
+
+// Удалить заявку (только владелец)
+app.delete('/api/orders/:id', requireOwner, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Заявка не найдена' });
+
+    await pool.query('DELETE FROM orders WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при удалении заявки' });
+  }
 });
 
 // ─────────────────────────────────────────────
 // ROUTES — Экспорт CSV (только владелец)
 // ─────────────────────────────────────────────
 
-app.get('/api/export/catalog', requireOwner, (req, res) => {
-  const items = db.prepare('SELECT * FROM items ORDER BY created_at DESC').all();
-  const CATEGORIES = {
-    top:'Верх', bottom:'Низ', dress:'Платья и юбки', outer:'Верхняя одежда',
-    shoes:'Обувь', bags:'Сумки', acc:'Аксессуары', sport:'Спорт', home:'Интерьер'
-  };
-  const rows = [['Артикул','Название','Категория','Размер','Цена','Состояние','Дата']];
-  items.forEach(i => rows.push([
-    i.art, i.name, CATEGORIES[i.category] || i.category,
-    i.size, i.price, i.condition, i.created_at
-  ]));
-  const csv = '\uFEFF' + rows.map(r =>
-    r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
-  ).join('\n');
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="nezhniy_resale_catalog.csv"');
-  res.send(csv);
+app.get('/api/export/catalog', requireOwner, async (req, res) => {
+  try {
+    const { rows: items } = await pool.query('SELECT * FROM items ORDER BY created_at DESC');
+    const CATEGORIES = {
+      top:'Верх', bottom:'Низ', dress:'Платья и юбки', outer:'Верхняя одежда',
+      shoes:'Обувь', bags:'Сумки', acc:'Аксессуары', sport:'Спорт', home:'Интерьер'
+    };
+    const csvRows = [['Артикул','Название','Категория','Размер','Цена','Состояние','Дата']];
+    items.forEach(i => csvRows.push([
+      i.art, i.name, CATEGORIES[i.category] || i.category,
+      i.size, i.price, i.condition, i.created_at
+    ]));
+    const csv = '\uFEFF' + csvRows.map(r =>
+      r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="nezhniy_resale_catalog.csv"');
+    res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при экспорте' });
+  }
 });
 
-app.get('/api/export/orders', requireOwner, (req, res) => {
-  const orders = db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all();
-  const rows = [['Дата','Имя','Телефон','Артикулы','Сумма','Комментарий']];
-  orders.forEach(o => rows.push([
-    o.created_at, o.buyer_name, o.phone, o.arts, o.total, o.comment || ''
-  ]));
-  const csv = '\uFEFF' + rows.map(r =>
-    r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
-  ).join('\n');
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="nezhniy_resale_orders.csv"');
-  res.send(csv);
+app.get('/api/export/orders', requireOwner, async (req, res) => {
+  try {
+    const { rows: orders } = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
+    const csvRows = [['Дата','Имя','Телефон','Артикулы','Сумма','Комментарий']];
+    orders.forEach(o => csvRows.push([
+      o.created_at, o.buyer_name, o.phone, o.arts, o.total, o.comment || ''
+    ]));
+    const csv = '\uFEFF' + csvRows.map(r =>
+      r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="nezhniy_resale_orders.csv"');
+    res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при экспорте' });
+  }
 });
 
 // ─────────────────────────────────────────────
@@ -288,13 +341,31 @@ app.post('/api/auth/check', (req, res) => {
 });
 
 // Статистика (только владелец)
-app.get('/api/stats', requireOwner, (req, res) => {
-  const totalItems = db.prepare('SELECT COUNT(*) as c FROM items').get().c;
-  const totalOrders = db.prepare('SELECT COUNT(*) as c FROM orders').get().c;
-  const totalSum = db.prepare('SELECT SUM(price) as s FROM items').get().s || 0;
-  res.json({ totalItems, totalOrders, totalSum });
+app.get('/api/stats', requireOwner, async (req, res) => {
+  try {
+    const { rows: itemRows } = await pool.query('SELECT COUNT(*) as c, COALESCE(SUM(price),0) as s FROM items');
+    const { rows: orderRows } = await pool.query('SELECT COUNT(*) as c FROM orders');
+    res.json({
+      totalItems: parseInt(itemRows[0].c),
+      totalOrders: parseInt(orderRows[0].c),
+      totalSum: parseInt(itemRows[0].s),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при загрузке статистики' });
+  }
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Сервер запущен на порту ${PORT}`);
-});
+// ─────────────────────────────────────────────
+// Запуск сервера
+// ─────────────────────────────────────────────
+initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`✅ Сервер запущен на порту ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('❌ Ошибка инициализации базы данных:', err);
+    process.exit(1);
+  });
