@@ -12,27 +12,28 @@ export default function AboutModal({ onClose }) {
         <div className="about-body">
           <div className="about-block">
             <div className="about-label">Адрес</div>
-            <div className="about-value">Нежный Ресейл<br />Петровско-Разумовский пр-т, 15</div>
+            <div className="about-value">Нежный Ресейл<br />Москва, Петровско-Разумовский пр-д, 15</div>
           </div>
 
           <div className="about-block">
             <div className="about-label">Режим работы</div>
-            <div className="about-value">Пн–Сб: 10:00–20:00<br />Вс: выходной</div>
+            <div className="about-value">Уточняйте время работы по телефону или в Telegram</div>
           </div>
 
           <div className="about-block">
             <div className="about-label">Контакты</div>
             <div className="about-value">
-              <a href="tel:+70000000000" className="about-link">📞 +7 (000) 000-00-00</a>
+              <a href="tel:+79859197555" className="about-link">📞 +7 (985) 919-75-55</a><br />
+              <a href="https://t.me/negniy_resale" target="_blank" rel="noopener noreferrer" className="about-link">💬 t.me/negniy_resale</a>
             </div>
           </div>
 
           <div className="about-block">
-            <div className="about-label">Мы в соцсетях</div>
-            <div className="about-socials">
-              <a href="#" target="_blank" rel="noopener noreferrer" className="social-chip">Instagram</a>
-              <a href="#" target="_blank" rel="noopener noreferrer" className="social-chip">Telegram</a>
-              <a href="#" target="_blank" rel="noopener noreferrer" className="social-chip">VK</a>
+            <div className="about-label">О нас</div>
+            <div className="about-value">
+              Ресейл-магазин премиум-класса в Москве. Только 100% оригинал —
+              никаких реплик и подделок. Большой выбор брендовой одежды, обуви и аксессуаров.
+              Рейтинг 4.8 на Яндекс Картах (167 оценок).
             </div>
           </div>
 

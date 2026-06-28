@@ -9,19 +9,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 18px 16px;
+  padding: 18px 16px 16px;
   background: var(--white);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 10;
+  gap: 10px;
 }
 
 .logo {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--black);
-  letter-spacing: 1.5px;
+  letter-spacing: 1px;
   text-transform: uppercase;
 }
 .logo span {
@@ -31,19 +32,21 @@
 
 .mode-toggle {
   display: flex;
-  gap: 18px;
+  gap: 14px;
+  flex-shrink: 0;
 }
 .mode-toggle button {
   padding: 0 0 4px;
   border: none;
   border-bottom: 2px solid transparent;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   background: transparent;
   color: var(--text-hint);
   transition: all .15s;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
 }
 .mode-toggle button.active {
   color: var(--black);
