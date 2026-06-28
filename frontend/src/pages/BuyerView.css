@@ -176,3 +176,37 @@
   from { opacity: 0; transform: translateX(-50%) translateY(10px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* Разделы — верхний уровень навигации (Женское/Мужское/Детское/Интерьер) */
+.section-tabs {
+  display: flex;
+  gap: 0;
+  padding: 16px 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.section-tab {
+  flex: 1;
+  padding: 0 0 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-hint);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  position: relative;
+  transition: color .2s;
+}
+.section-tab::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 0;
+  height: 2px;
+  background: var(--black);
+  transform: scaleX(0);
+  transition: transform .2s ease;
+}
+.section-tab.active { color: var(--black); }
+.section-tab.active::after { transform: scaleX(1); }

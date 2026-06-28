@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { ownerFetch, apiFetch, getPhotoUrl } from '../api.js'
 import { CATEGORIES, CATEGORIES_MAP, CONDITIONS, COND_COLORS, getSizesForCategory } from '../constants.js'
+import EditItemModal from '../components/EditItemModal.jsx'
 import './OwnerView.css'
 
 export default function OwnerView() {
@@ -22,6 +23,7 @@ export default function OwnerView() {
   const [photoPreview, setPhotoPreview] = useState(null)
   const [adding, setAdding] = useState(false)
   const [newOrdersNotice, setNewOrdersNotice] = useState(0)
+  const [editingItem, setEditingItem] = useState(null)
   const fileRef = useRef()
 
   async function login() {
@@ -318,7 +320,10 @@ export default function OwnerView() {
                     </div>
                     <div className="owner-item-right">
                       <div className="owner-item-price">{item.price.toLocaleString('ru-RU')} ₽</div>
-                      <button className="delete-btn" onClick={() => handleDelete(item.id)}>🗑</button>
+                      <div className="owner-item-actions">
+                        <button className="edit-btn" onClick={() => setEditingItem(item)}>✏️</button>
+                        <button className="delete-btn" onClick={() => handleDelete(item.id)}>🗑</button>
+                      </div>
                     </div>
                   </div>
                 )
@@ -362,6 +367,19 @@ export default function OwnerView() {
       )}
 
       {toast && <div className={`toast ${toast.type === 'success' ? 'toast-success' : 'toast-error'}`}>{toast.msg}</div>}
+
+      {editingItem && (
+        <EditItemModal
+          item={editingItem}
+          password={password}
+          onClose={() => setEditingItem(null)}
+          onSaved={updated => {
+            setItems(prev => prev.map(i => i.id === updated.id ? updated : i))
+            setEditingItem(null)
+            showToast('Товар обновлён', 'success')
+          }}
+        />
+      )}
     </div>
   )
 }

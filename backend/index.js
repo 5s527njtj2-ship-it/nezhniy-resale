@@ -207,6 +207,43 @@ app.delete('/api/items/:id', requireOwner, async (req, res) => {
   }
 });
 
+// Редактировать товар (только владелец)
+app.put('/api/items/:id', requireOwner, upload.single('photo'), async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM items WHERE id = $1', [req.params.id]);
+    const existing = rows[0];
+    if (!existing) return res.status(404).json({ error: 'Товар не найден' });
+
+    const { name, category, size, price, condition } = req.body;
+
+    if (!name || !category || !price || !condition) {
+      return res.status(400).json({ error: 'Заполните все обязательные поля' });
+    }
+
+    let photoUrl = existing.photo;
+    if (req.file) {
+      // удаляем старое фото, если было, и загружаем новое
+      if (existing.photo) {
+        const oldFilename = existing.photo.split('/').pop();
+        await deletePhotoFromStorage(oldFilename);
+      }
+      const filename = `${uuidv4()}.webp`;
+      photoUrl = await uploadPhotoToStorage(req.file.buffer, filename);
+    }
+
+    const { rows: updated } = await pool.query(
+      `UPDATE items SET name = $1, category = $2, size = $3, price = $4, condition = $5, photo = $6
+       WHERE id = $7 RETURNING *`,
+      [name, category, size || 'One size', parseInt(price), condition, photoUrl, req.params.id]
+    );
+
+    res.json(updated[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при редактировании товара' });
+  }
+});
+
 // ─────────────────────────────────────────────
 // ROUTES — Заявки
 // ─────────────────────────────────────────────

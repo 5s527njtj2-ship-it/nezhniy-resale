@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { apiFetch } from '../api.js'
-import { CATEGORIES } from '../constants.js'
+import { SECTIONS, SUBCATEGORIES } from '../constants.js'
 import ItemCard from '../components/ItemCard.jsx'
 import CartPanel from '../components/CartPanel.jsx'
 import BookingModal from '../components/BookingModal.jsx'
@@ -9,26 +9,37 @@ import './BuyerView.css'
 export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClearCart }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
-  const [category, setCategory] = useState('all')
+  const [section, setSection] = useState('women')
+  const [subcategory, setSubcategory] = useState('all')
   const [search, setSearch] = useState('')
   const [view, setView] = useState('catalog') // 'catalog' | 'cart'
   const [showBooking, setShowBooking] = useState(false)
   const [toast, setToast] = useState(null)
 
+  const subcats = SUBCATEGORIES[section] || []
+
+  const SECTION_PREFIX = { women: 'w-', men: 'm-', kids: 'k-', home: 'home' }
+
   const fetchItems = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
-      if (category !== 'all') params.set('category', category)
+      if (subcategory !== 'all') {
+        params.set('category', subcategory)
+      }
       if (search.trim()) params.set('search', search.trim())
       const data = await apiFetch(`/items?${params}`)
-      setItems(data)
+      const prefix = SECTION_PREFIX[section]
+      const filtered = subcategory === 'all'
+        ? data.filter(i => prefix === 'home' ? i.category === 'home' : i.category.startsWith(prefix))
+        : data
+      setItems(filtered)
     } catch (e) {
       showToast('Ошибка загрузки: ' + e.message)
     } finally {
       setLoading(false)
     }
-  }, [category, search])
+  }, [section, subcategory, search])
 
   useEffect(() => {
     const t = setTimeout(fetchItems, search ? 400 : 0)
@@ -38,6 +49,11 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
   function showToast(msg, type = 'info') {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 3000)
+  }
+
+  function handleSectionChange(id) {
+    setSection(id)
+    setSubcategory('all')
   }
 
   function handleAdd(item) {
@@ -80,18 +96,33 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
             )}
           </div>
 
-          {/* Фильтры категорий */}
-          <div className="cat-scroll">
-            {CATEGORIES.map(cat => (
+          {/* Разделы — верхний уровень */}
+          <div className="section-tabs">
+            {SECTIONS.map(s => (
               <button
-                key={cat.id}
-                className={`cat-chip ${category === cat.id ? 'active' : ''}`}
-                onClick={() => setCategory(cat.id)}
+                key={s.id}
+                className={`section-tab ${section === s.id ? 'active' : ''}`}
+                onClick={() => handleSectionChange(s.id)}
               >
-                {cat.label}
+                {s.label}
               </button>
             ))}
           </div>
+
+          {/* Подкатегории выбранного раздела */}
+          {subcats.length > 1 && (
+            <div className="cat-scroll">
+              {subcats.map(sub => (
+                <button
+                  key={sub.id}
+                  className={`cat-chip ${subcategory === sub.id ? 'active' : ''}`}
+                  onClick={() => setSubcategory(sub.id)}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Шапка с кол-вом и корзиной */}
           <div className="catalog-topbar">
