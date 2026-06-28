@@ -351,3 +351,12 @@
   display: flex; align-items: center; justify-content: center;
   opacity: 0.6;
 }
+
+.badge-reserved {
+  font-size: 10px;
+  background: #FBEAF0;
+  color: #993556;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 700;
+}

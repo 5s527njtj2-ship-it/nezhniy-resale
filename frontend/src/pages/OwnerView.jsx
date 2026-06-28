@@ -315,6 +315,11 @@ export default function OwnerView() {
                         <span className="badge-cat">{cat?.emoji} {cat?.label}</span>
                         {item.size !== '—' && <span className="badge-size">{item.size}</span>}
                         <span className="badge-cond" style={{ background: condStyle.bg, color: condStyle.color }}>{item.condition}</span>
+                        {item.reserved_until && new Date(item.reserved_until) > new Date() && (
+                          <span className="badge-reserved">
+                            🔒 До {new Date(item.reserved_until).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' })}
+                          </span>
+                        )}
                       </div>
                       <div className="owner-item-date">{item.created_at}</div>
                     </div>

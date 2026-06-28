@@ -17,8 +17,14 @@ async function initDb() {
       price       INTEGER NOT NULL,
       condition   TEXT    NOT NULL,
       photo       TEXT,
+      reserved_until TIMESTAMP,
       created_at  TIMESTAMP NOT NULL DEFAULT NOW()
     );
+  `);
+
+  // Миграция: добавляем колонку reserved_until, если таблица уже существовала без неё
+  await pool.query(`
+    ALTER TABLE items ADD COLUMN IF NOT EXISTS reserved_until TIMESTAMP;
   `);
 
   await pool.query(`

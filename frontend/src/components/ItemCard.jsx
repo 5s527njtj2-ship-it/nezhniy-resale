@@ -6,6 +6,7 @@ export default function ItemCard({ item, inCart, onAdd, onRemove }) {
   const photoUrl = getPhotoUrl(item.photo)
   const condStyle = COND_COLORS[item.condition] || {}
   const cat = CATEGORIES_MAP[item.category]
+  const isReserved = item.reserved_until && new Date(item.reserved_until) > new Date()
 
   return (
     <div className="item-card">
@@ -14,6 +15,7 @@ export default function ItemCard({ item, inCart, onAdd, onRemove }) {
           ? <img src={photoUrl} alt={item.name} loading="lazy" />
           : <div className="item-photo-placeholder">{cat?.emoji || '👗'}</div>
         }
+        {isReserved && <span className="reserved-tag">Забронировано</span>}
         <button
           className={`add-btn ${inCart ? 'in-cart' : ''}`}
           onClick={inCart ? onRemove : onAdd}

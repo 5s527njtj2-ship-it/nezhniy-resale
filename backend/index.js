@@ -125,6 +125,39 @@ async function sendOrderEmail(order) {
   });
 }
 
+async function sendTelegramNotification(order) {
+  if (!process.env.BOT_TOKEN || !process.env.OWNER_CHAT_ID) return;
+
+  const itemsText = order.items
+    .map(i => `• ${i.art} — ${i.name} — ${i.price.toLocaleString('ru-RU')} ₽`)
+    .join('\n');
+
+  const text =
+    `🛍 *Новая заявка*\n\n` +
+    `👤 ${order.buyer_name}\n` +
+    `📞 ${order.phone}\n` +
+    (order.comment ? `💬 ${order.comment}\n` : '') +
+    `\n${itemsText}\n\n` +
+    `💰 Итого: *${order.total.toLocaleString('ru-RU')} ₽*\n` +
+    `⏱ Бронь действует 1 час`;
+
+  const url = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
+
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: process.env.OWNER_CHAT_ID,
+        text,
+        parse_mode: 'Markdown',
+      }),
+    });
+  } catch (err) {
+    console.error('Ошибка отправки в Telegram:', err.message);
+  }
+}
+
 // ─────────────────────────────────────────────
 // ROUTES — Товары
 // ─────────────────────────────────────────────
@@ -132,6 +165,9 @@ async function sendOrderEmail(order) {
 // Получить все товары (публично)
 app.get('/api/items', async (req, res) => {
   try {
+    // Снимаем истёкшие брони (старше 1 часа)
+    await pool.query(`UPDATE items SET reserved_until = NULL WHERE reserved_until < NOW()`);
+
     const { category, search } = req.query;
     let query = 'SELECT * FROM items WHERE 1=1';
     const params = [];
@@ -279,10 +315,22 @@ app.post('/api/orders', async (req, res) => {
       ]
     );
 
+    // Бронируем товары на 1 час
+    await pool.query(
+      `UPDATE items SET reserved_until = NOW() + INTERVAL '1 hour' WHERE art = ANY($1)`,
+      [arts]
+    );
+
     try {
       await sendOrderEmail({ buyer_name, phone, comment, items, total });
     } catch (mailErr) {
       console.error('Ошибка отправки email:', mailErr.message);
+    }
+
+    try {
+      await sendTelegramNotification({ buyer_name, phone, comment, items, total });
+    } catch (tgErr) {
+      console.error('Ошибка отправки в Telegram:', tgErr.message);
     }
 
     res.status(201).json(rows[0]);
