@@ -211,10 +211,21 @@ app.get('/api/items', async (req, res) => {
   }
 });
 
+// Засчитать просмотр товара (публично, вызывается при открытии карточки)
+app.post('/api/items/:id/view', async (req, res) => {
+  try {
+    await pool.query('UPDATE items SET views_count = views_count + 1 WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при учёте просмотра' });
+  }
+});
+
 // Добавить товар (только владелец)
 app.post('/api/items', requireOwner, upload.array('photos', 6), async (req, res) => {
   try {
-    const { name, category, size, price, condition } = req.body;
+    const { name, category, size, price, condition, old_price } = req.body;
 
     if (!name || !category || !price || !condition) {
       return res.status(400).json({ error: 'Заполните все обязательные поля' });
@@ -229,12 +240,14 @@ app.post('/api/items', requireOwner, upload.array('photos', 6), async (req, res)
       }
     }
 
+    const oldPriceValue = old_price && parseInt(old_price) > parseInt(price) ? parseInt(old_price) : null;
+
     const art = await nextArt();
     const { rows } = await pool.query(
-      `INSERT INTO items (art, name, category, size, price, condition, photo, photos)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO items (art, name, category, size, price, old_price, condition, photo, photos)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [art, name, category, size || 'One size', parseInt(price), condition, photoUrls[0] || null, photoUrls]
+      [art, name, category, size || 'One size', parseInt(price), oldPriceValue, condition, photoUrls[0] || null, photoUrls]
     );
 
     res.status(201).json(rows[0]);
@@ -272,11 +285,13 @@ app.put('/api/items/:id', requireOwner, upload.array('photos', 6), async (req, r
     const existing = rows[0];
     if (!existing) return res.status(404).json({ error: 'Товар не найден' });
 
-    const { name, category, size, price, condition, keepPhotos } = req.body;
+    const { name, category, size, price, condition, keepPhotos, old_price } = req.body;
 
     if (!name || !category || !price || !condition) {
       return res.status(400).json({ error: 'Заполните все обязательные поля' });
     }
+
+    const oldPriceValue = old_price && parseInt(old_price) > parseInt(price) ? parseInt(old_price) : null;
 
     // keepPhotos — JSON-массив URL фото, которые нужно оставить (присылает фронтенд)
     let photoUrls = existing.photos && existing.photos.length ? [...existing.photos] : (existing.photo ? [existing.photo] : []);
@@ -298,9 +313,9 @@ app.put('/api/items/:id', requireOwner, upload.array('photos', 6), async (req, r
     }
 
     const { rows: updated } = await pool.query(
-      `UPDATE items SET name = $1, category = $2, size = $3, price = $4, condition = $5, photo = $6, photos = $7
-       WHERE id = $8 RETURNING *`,
-      [name, category, size || 'One size', parseInt(price), condition, photoUrls[0] || null, photoUrls, req.params.id]
+      `UPDATE items SET name = $1, category = $2, size = $3, price = $4, old_price = $5, condition = $6, photo = $7, photos = $8
+       WHERE id = $9 RETURNING *`,
+      [name, category, size || 'One size', parseInt(price), oldPriceValue, condition, photoUrls[0] || null, photoUrls, req.params.id]
     );
 
     res.json(updated[0]);
@@ -448,11 +463,12 @@ app.get('/api/export/catalog', requireOwner, async (req, res) => {
       top:'Верх', bottom:'Низ', dress:'Платья и юбки', outer:'Верхняя одежда',
       shoes:'Обувь', bags:'Сумки', acc:'Аксессуары', sport:'Спорт', home:'Интерьер'
     };
-    const csvRows = [['Артикул','Название','Категория','Размер','Цена','Состояние','Статус','Дата добавления','Дата продажи','Фото (ссылка)','Фото (формула для Google Sheets)']];
+    const csvRows = [['Артикул','Название','Категория','Размер','Цена','Старая цена','Состояние','Статус','Просмотры','Дата добавления','Дата продажи','Фото (ссылка)','Фото (формула для Google Sheets)']];
     items.forEach(i => csvRows.push([
       i.art, i.name, CATEGORIES[i.category] || i.category,
-      i.size, i.price, i.condition,
+      i.size, i.price, i.old_price || '', i.condition,
       i.sold ? 'Продано' : 'В продаже',
+      i.views_count || 0,
       i.created_at, i.sold_at || '',
       i.photo || '',
       i.photo ? `=IMAGE("${i.photo}")` : ''
@@ -522,6 +538,23 @@ app.get('/api/stats', requireOwner, async (req, res) => {
 });
 
 // Детальная статистика продаж по месяцам (только владелец)
+// Топ просматриваемых товаров (только владелец)
+app.get('/api/stats/top-viewed', requireOwner, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, art, name, category, price, photo, views_count, sold
+      FROM items
+      WHERE views_count > 0
+      ORDER BY views_count DESC
+      LIMIT 10
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при загрузке статистики просмотров' });
+  }
+});
+
 app.get('/api/stats/sales', requireOwner, async (req, res) => {
   try {
     const { rows: monthly } = await pool.query(`

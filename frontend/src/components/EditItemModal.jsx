@@ -8,6 +8,7 @@ export default function EditItemModal({ item, password, onClose, onSaved }) {
     category: item.category,
     size: item.size,
     price: item.price,
+    old_price: item.old_price || '',
     condition: item.condition,
   })
   // Существующие фото товара (полные URL) — можно убирать по одному
@@ -116,6 +117,10 @@ export default function EditItemModal({ item, password, onClose, onSaved }) {
             <div className="form-group">
               <label>Цена, ₽ *</label>
               <input type="number" value={form.price} onChange={e => setForm(f => ({...f, price: e.target.value}))} required min="1" />
+            </div>
+            <div className="form-group">
+              <label>Старая цена, ₽</label>
+              <input type="number" placeholder="Если скидка" value={form.old_price} onChange={e => setForm(f => ({...f, old_price: e.target.value}))} min="1" />
             </div>
             <div className="form-group full">
               <label>Состояние</label>

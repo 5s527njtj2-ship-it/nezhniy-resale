@@ -15,12 +15,14 @@ async function initDb() {
       category    TEXT    NOT NULL,
       size        TEXT    NOT NULL DEFAULT 'One size',
       price       INTEGER NOT NULL,
+      old_price   INTEGER,
       condition   TEXT    NOT NULL,
       photo       TEXT,
       photos      TEXT[]  NOT NULL DEFAULT '{}',
       reserved_until TIMESTAMP,
       sold        BOOLEAN NOT NULL DEFAULT FALSE,
       sold_at     TIMESTAMP,
+      views_count INTEGER NOT NULL DEFAULT 0,
       created_at  TIMESTAMP NOT NULL DEFAULT NOW()
     );
   `);
@@ -30,6 +32,8 @@ async function initDb() {
   await pool.query(`ALTER TABLE items ADD COLUMN IF NOT EXISTS photos TEXT[] NOT NULL DEFAULT '{}';`);
   await pool.query(`ALTER TABLE items ADD COLUMN IF NOT EXISTS sold BOOLEAN NOT NULL DEFAULT FALSE;`);
   await pool.query(`ALTER TABLE items ADD COLUMN IF NOT EXISTS sold_at TIMESTAMP;`);
+  await pool.query(`ALTER TABLE items ADD COLUMN IF NOT EXISTS old_price INTEGER;`);
+  await pool.query(`ALTER TABLE items ADD COLUMN IF NOT EXISTS views_count INTEGER NOT NULL DEFAULT 0;`);
 
   // Для уже добавленных товаров с одним фото — переносим его в массив photos, если массив пуст
   await pool.query(`

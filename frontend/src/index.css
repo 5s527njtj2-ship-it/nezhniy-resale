@@ -33,6 +33,21 @@ html, body {
   -webkit-font-smoothing: antialiased;
   max-width: 480px;
   margin: 0 auto;
+  transition: background .2s ease, color .2s ease;
+}
+
+/* Тёмная тема — подключается автоматически по цветовой схеме Telegram */
+body.dark {
+  --black: #FFFFFF;
+  --white: #1C1C1E;
+  --text: #F2F2F2;
+  --text-muted: #A0A0A0;
+  --text-hint: #6B6B6B;
+  --border: #2C2C2E;
+  --border-strong: #3A3A3C;
+  --bg: #000000;
+  --bg-card: #1C1C1E;
+  --bg-secondary: #1C1C1E;
 }
 
 #root { min-height: 100vh; }

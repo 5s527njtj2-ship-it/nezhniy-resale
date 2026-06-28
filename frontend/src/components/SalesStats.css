@@ -80,3 +80,36 @@
   font-size: 13px;
   background: var(--bg-secondary);
 }
+
+.top-viewed-list { display: flex; flex-direction: column; gap: 0; }
+.top-viewed-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.top-viewed-row:last-child { border-bottom: none; }
+.top-viewed-photo {
+  width: 40px; height: 40px;
+  border-radius: 0;
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.top-viewed-photo img { width: 100%; height: 100%; object-fit: cover; }
+.top-viewed-info { flex: 1; min-width: 0; }
+.top-viewed-name {
+  font-size: 12px; font-weight: 500; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.top-viewed-meta { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+.top-viewed-meta .art { font-size: 10px; }
+.top-viewed-views {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  flex-shrink: 0;
+}

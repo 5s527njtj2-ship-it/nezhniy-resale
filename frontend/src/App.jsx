@@ -10,6 +10,7 @@ const CONSENT_KEY = 'nr_privacy_consent'
 export default function App() {
   const [mode, setMode] = useState('buyer') // 'buyer' | 'owner'
   const [cart, setCart] = useState([])
+  const [favorites, setFavorites] = useState([])
   const [showAbout, setShowAbout] = useState(false)
   const [consentGiven, setConsentGiven] = useState(true) // по умолчанию true, проверим в useEffect
 
@@ -57,6 +58,14 @@ export default function App() {
     setCart([])
   }
 
+  function toggleFavorite(item) {
+    setFavorites(prev => {
+      const exists = prev.find(i => i.id === item.id)
+      if (exists) return prev.filter(i => i.id !== item.id)
+      return [...prev, item]
+    })
+  }
+
   if (!consentGiven) {
     return <PrivacyConsent onAccept={handleAcceptConsent} />
   }
@@ -94,6 +103,8 @@ export default function App() {
             onAddToCart={addToCart}
             onRemoveFromCart={removeFromCart}
             onClearCart={clearCart}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
           />
         ) : (
           <OwnerView />

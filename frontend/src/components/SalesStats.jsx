@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { ownerFetch } from '../api.js'
+import { ownerFetch, getPhotoUrl } from '../api.js'
 import { CATEGORIES_MAP } from '../constants.js'
 import './SalesStats.css'
 
 export default function SalesStats({ password }) {
   const [data, setData] = useState(null)
+  const [topViewed, setTopViewed] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -12,8 +13,14 @@ export default function SalesStats({ password }) {
     let cancelled = false
     async function load() {
       try {
-        const res = await ownerFetch('/stats/sales', {}, password)
-        if (!cancelled) setData(res)
+        const [salesRes, topRes] = await Promise.all([
+          ownerFetch('/stats/sales', {}, password),
+          ownerFetch('/stats/top-viewed', {}, password),
+        ])
+        if (!cancelled) {
+          setData(salesRes)
+          setTopViewed(topRes)
+        }
       } catch (e) {
         if (!cancelled) setError(e.message)
       } finally {
@@ -30,6 +37,7 @@ export default function SalesStats({ password }) {
 
   const maxMonthSum = Math.max(1, ...data.monthly.map(m => m.sum))
   const maxCatSum = Math.max(1, ...data.byCategory.map(c => c.sum))
+  const maxViews = Math.max(1, ...topViewed.map(i => i.views_count))
 
   function formatMonth(m) {
     const [year, month] = m.split('-')
@@ -53,6 +61,33 @@ export default function SalesStats({ password }) {
           <div className="sales-summary-label">Средний чек, ₽</div>
         </div>
       </div>
+
+      {topViewed.length > 0 && (
+        <div className="sales-section">
+          <div className="sales-section-title">Топ просматриваемых</div>
+          <div className="top-viewed-list">
+            {topViewed.map(item => {
+              const photoUrl = getPhotoUrl(item.photo)
+              const cat = CATEGORIES_MAP[item.category]
+              return (
+                <div className="top-viewed-row" key={item.id}>
+                  <div className="top-viewed-photo">
+                    {photoUrl ? <img src={photoUrl} alt={item.name} /> : <span>{cat?.emoji}</span>}
+                  </div>
+                  <div className="top-viewed-info">
+                    <div className="top-viewed-name">{item.name}</div>
+                    <div className="top-viewed-meta">
+                      <span className="art">{item.art}</span>
+                      {item.sold && <span className="badge-sold">Продано</span>}
+                    </div>
+                  </div>
+                  <div className="top-viewed-views">👁 {item.views_count}</div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {data.monthly.length > 0 && (
         <div className="sales-section">
@@ -91,8 +126,8 @@ export default function SalesStats({ password }) {
         </div>
       )}
 
-      {data.totalSold === 0 && (
-        <div className="sales-empty">Пока нет проданных товаров — статистика появится после первой продажи</div>
+      {data.totalSold === 0 && topViewed.length === 0 && (
+        <div className="sales-empty">Статистика появится после первых просмотров и продаж</div>
       )}
     </div>
   )

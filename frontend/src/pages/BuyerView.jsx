@@ -7,17 +7,25 @@ import BookingModal from '../components/BookingModal.jsx'
 import FilterPanel from '../components/FilterPanel.jsx'
 import './BuyerView.css'
 
-export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClearCart }) {
+const SORT_OPTIONS = [
+  { id: 'new', label: 'Сначала новые' },
+  { id: 'price_asc', label: 'Дешевле' },
+  { id: 'price_desc', label: 'Дороже' },
+]
+
+export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClearCart, favorites, onToggleFavorite }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [section, setSection] = useState('women')
   const [subcategory, setSubcategory] = useState('all')
   const [search, setSearch] = useState('')
-  const [view, setView] = useState('catalog') // 'catalog' | 'cart'
+  const [view, setView] = useState('catalog') // 'catalog' | 'cart' | 'favorites'
   const [showBooking, setShowBooking] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [priceRange, setPriceRange] = useState({ min: '', max: '' })
   const [sizeFilter, setSizeFilter] = useState('')
+  const [sortBy, setSortBy] = useState('new')
+  const [showSortMenu, setShowSortMenu] = useState(false)
   const [toast, setToast] = useState(null)
 
   const subcats = SUBCATEGORIES[section] || []
@@ -39,7 +47,7 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
       const data = await apiFetch(`/items?${params}`)
       const prefix = SECTION_PREFIX[section]
       const hasPrefix = i => i.category.startsWith('w-') || i.category.startsWith('m-') || i.category.startsWith('k-') || i.category === 'home'
-      const filtered = subcategory === 'all'
+      let filtered = subcategory === 'all'
         ? data.filter(i => {
             if (prefix === 'home') return i.category === 'home'
             if (i.category.startsWith(prefix)) return true
@@ -48,18 +56,27 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
             return false
           })
         : data
+
+      filtered = sortItems(filtered, sortBy)
       setItems(filtered)
     } catch (e) {
       showToast('Ошибка загрузки: ' + e.message)
     } finally {
       setLoading(false)
     }
-  }, [section, subcategory, search, priceRange, sizeFilter])
+  }, [section, subcategory, search, priceRange, sizeFilter, sortBy])
 
   useEffect(() => {
     const t = setTimeout(fetchItems, search ? 400 : 0)
     return () => clearTimeout(t)
   }, [fetchItems, search])
+
+  function sortItems(list, sort) {
+    const copy = [...list]
+    if (sort === 'price_asc') return copy.sort((a, b) => a.price - b.price)
+    if (sort === 'price_desc') return copy.sort((a, b) => b.price - a.price)
+    return copy.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  }
 
   function showToast(msg, type = 'info') {
     setToast({ msg, type })
@@ -84,6 +101,10 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
     onRemoveFromCart(id)
   }
 
+  function handleToggleFavorite(item) {
+    onToggleFavorite(item)
+  }
+
   function handleBookingSuccess() {
     setShowBooking(false)
     onClearCart()
@@ -92,6 +113,8 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
   }
 
   const inCart = (id) => !!cart.find(i => i.id === id)
+  const isFavorite = (id) => !!favorites.find(i => i.id === id)
+  const currentSortLabel = SORT_OPTIONS.find(s => s.id === sortBy)?.label || 'Сортировка'
 
   return (
     <div className="buyer-view">
@@ -139,18 +162,40 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
             </div>
           )}
 
-          {/* Шапка с кол-вом и корзиной */}
+          {/* Шапка с кол-вом, сортировкой, фильтрами, корзиной */}
           <div className="catalog-topbar">
             <span className="catalog-count">
               {loading ? '…' : `${items.length} ${plural(items.length, ['вещь','вещи','вещей'])}`}
             </span>
-            <div style={{ display:'flex', gap:10 }}>
+            <div className="topbar-actions">
+              <div className="sort-wrap">
+                <button className="filter-btn" onClick={() => setShowSortMenu(v => !v)}>
+                  ↕ {currentSortLabel}
+                </button>
+                {showSortMenu && (
+                  <div className="sort-menu">
+                    {SORT_OPTIONS.map(opt => (
+                      <button
+                        key={opt.id}
+                        className={`sort-option ${sortBy === opt.id ? 'active' : ''}`}
+                        onClick={() => { setSortBy(opt.id); setShowSortMenu(false) }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button className={`filter-btn ${hasActiveFilters ? 'has-active' : ''}`} onClick={() => setShowFilters(true)}>
                 ⚙ Фильтры
                 {hasActiveFilters && <span className="cart-badge">•</span>}
               </button>
+              <button className="cart-btn" onClick={() => setView('favorites')}>
+                ❤️
+                {favorites.length > 0 && <span className="cart-badge">{favorites.length}</span>}
+              </button>
               <button className="cart-btn" onClick={() => setView('cart')}>
-                🛒 Корзина
+                🛒
                 {cart.length > 0 && <span className="cart-badge">{cart.length}</span>}
               </button>
             </div>
@@ -175,11 +220,42 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
                   inCart={inCart(item.id)}
                   onAdd={() => handleAdd(item)}
                   onRemove={() => handleRemove(item.id)}
+                  isFavorite={isFavorite(item.id)}
+                  onToggleFavorite={() => handleToggleFavorite(item)}
                 />
               ))}
             </div>
           )}
         </>
+      )}
+
+      {view === 'favorites' && (
+        <div className="favorites-view">
+          <div className="cart-header">
+            <button className="back-btn" onClick={() => setView('catalog')}>← Назад</button>
+            <h2>Избранное</h2>
+          </div>
+          {favorites.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-emoji">❤️</div>
+              <p>Список избранного пуст</p>
+            </div>
+          ) : (
+            <div className="catalog-grid" style={{ marginTop: 16 }}>
+              {favorites.map(item => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  inCart={inCart(item.id)}
+                  onAdd={() => handleAdd(item)}
+                  onRemove={() => handleRemove(item.id)}
+                  isFavorite={true}
+                  onToggleFavorite={() => handleToggleFavorite(item)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {view === 'cart' && (

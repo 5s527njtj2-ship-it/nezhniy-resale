@@ -225,3 +225,39 @@
   letter-spacing: 0.8px;
 }
 .filter-btn.has-active { color: var(--black); }
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+}
+
+.sort-wrap { position: relative; }
+
+.sort-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: var(--white);
+  border: 1px solid var(--border-strong);
+  z-index: 50;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.sort-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.sort-option:last-child { border-bottom: none; }
+.sort-option.active { font-weight: 700; }
+
+.favorites-view { padding-bottom: 24px; }

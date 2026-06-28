@@ -20,7 +20,7 @@ export default function OwnerView() {
   const [toast, setToast] = useState(null)
 
   // Форма добавления
-  const [form, setForm] = useState({ name: '', category: 'top', size: 'M', price: '', condition: 'Отличное' })
+  const [form, setForm] = useState({ name: '', category: 'top', size: 'M', price: '', old_price: '', condition: 'Отличное' })
   const [photoFiles, setPhotoFiles] = useState([])
   const [photoPreviews, setPhotoPreviews] = useState([])
   const [adding, setAdding] = useState(false)
@@ -91,7 +91,7 @@ export default function OwnerView() {
 
       setItems(prev => [item, ...prev])
       setStats(prev => ({ ...prev, totalItems: (prev.totalItems||0)+1, totalSum: (prev.totalSum||0)+item.price }))
-      setForm({ name: '', category: form.category, size: form.size, price: '', condition: form.condition })
+      setForm({ name: '', category: form.category, size: form.size, price: '', old_price: '', condition: form.condition })
       setPhotoFiles([])
       setPhotoPreviews([])
       if (fileRef.current) fileRef.current.value = ''
@@ -309,6 +309,10 @@ export default function OwnerView() {
                 <div className="form-group">
                   <label>Цена, ₽ *</label>
                   <input type="number" placeholder="1500" value={form.price} onChange={e => setForm(f => ({...f, price: e.target.value}))} required min="1" />
+                </div>
+                <div className="form-group">
+                  <label>Старая цена, ₽</label>
+                  <input type="number" placeholder="Если скидка" value={form.old_price} onChange={e => setForm(f => ({...f, old_price: e.target.value}))} min="1" />
                 </div>
                 <div className="form-group full">
                   <label>Состояние</label>

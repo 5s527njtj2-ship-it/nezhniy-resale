@@ -104,9 +104,6 @@
 }
 
 .reserved-tag {
-  position: absolute;
-  top: 8px;
-  left: 8px;
   background: rgba(17,17,17,0.85);
   color: #fff;
   font-size: 9px;
@@ -127,4 +124,82 @@
   font-weight: 700;
   padding: 3px 7px;
   border-radius: 4px;
+}
+
+.item-tags {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
+}
+.item-tags .reserved-tag {
+  position: static;
+  top: auto;
+  left: auto;
+}
+
+.discount-tag {
+  background: #C0392B;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.new-tag {
+  background: #111;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.item-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+.item-old-price {
+  font-size: 11px;
+  color: var(--text-hint);
+  text-decoration: line-through;
+}
+
+.fav-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.85);
+  border: none;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-btn {
+  position: absolute;
+  top: 8px;
+  right: 40px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.85);
+  border: none;
+  font-size: 13px;
+  color: var(--black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
