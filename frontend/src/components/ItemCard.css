@@ -116,3 +116,15 @@
   padding: 4px 8px;
   border-radius: 4px;
 }
+
+.photo-count-tag {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(17,17,17,0.75);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 4px;
+}

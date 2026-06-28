@@ -2,25 +2,27 @@ import { useState, useEffect, useRef } from 'react'
 import { ownerFetch, apiFetch, getPhotoUrl } from '../api.js'
 import { CATEGORIES, CATEGORIES_MAP, CONDITIONS, COND_COLORS, getSizesForCategory } from '../constants.js'
 import EditItemModal from '../components/EditItemModal.jsx'
+import SalesStats from '../components/SalesStats.jsx'
 import './OwnerView.css'
 
 export default function OwnerView() {
   const [password, setPassword] = useState('')
   const [authed, setAuthed] = useState(false)
   const [authError, setAuthError] = useState('')
-  const [tab, setTab] = useState('items') // 'items' | 'orders'
+  const [tab, setTab] = useState('items') // 'items' | 'orders' | 'stats'
 
   const [items, setItems] = useState([])
   const [orders, setOrders] = useState([])
   const [stats, setStats] = useState({})
   const [filterCat, setFilterCat] = useState('all')
+  const [showSold, setShowSold] = useState(false)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState(null)
 
   // Форма добавления
   const [form, setForm] = useState({ name: '', category: 'top', size: 'M', price: '', condition: 'Отличное' })
-  const [photoFile, setPhotoFile] = useState(null)
-  const [photoPreview, setPhotoPreview] = useState(null)
+  const [photoFiles, setPhotoFiles] = useState([])
+  const [photoPreviews, setPhotoPreviews] = useState([])
   const [adding, setAdding] = useState(false)
   const [newOrdersNotice, setNewOrdersNotice] = useState(0)
   const [editingItem, setEditingItem] = useState(null)
@@ -41,7 +43,7 @@ export default function OwnerView() {
     setLoading(true)
     try {
       const [itemsData, ordersData, statsData] = await Promise.all([
-        ownerFetch('/items', {}, password),
+        ownerFetch('/items?includeSold=true', {}, password),
         ownerFetch('/orders', {}, password),
         ownerFetch('/stats', {}, password),
       ])
@@ -64,10 +66,10 @@ export default function OwnerView() {
   }
 
   function handlePhotoChange(e) {
-    const file = e.target.files[0]
-    if (!file) return
-    setPhotoFile(file)
-    setPhotoPreview(URL.createObjectURL(file))
+    const files = Array.from(e.target.files).slice(0, 6)
+    if (!files.length) return
+    setPhotoFiles(files)
+    setPhotoPreviews(files.map(f => URL.createObjectURL(f)))
   }
 
   async function handleAddItem(e) {
@@ -77,7 +79,7 @@ export default function OwnerView() {
     try {
       const fd = new FormData()
       Object.entries(form).forEach(([k, v]) => fd.append(k, v))
-      if (photoFile) fd.append('photo', photoFile)
+      photoFiles.forEach(f => fd.append('photos', f))
 
       const res = await fetch(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/items` : '/api/items', {
         method: 'POST',
@@ -90,8 +92,8 @@ export default function OwnerView() {
       setItems(prev => [item, ...prev])
       setStats(prev => ({ ...prev, totalItems: (prev.totalItems||0)+1, totalSum: (prev.totalSum||0)+item.price }))
       setForm({ name: '', category: form.category, size: form.size, price: '', condition: form.condition })
-      setPhotoFile(null)
-      setPhotoPreview(null)
+      setPhotoFiles([])
+      setPhotoPreviews([])
       if (fileRef.current) fileRef.current.value = ''
       showToast(`Добавлено: ${item.art}`, 'success')
     } catch (e) {
@@ -103,12 +105,51 @@ export default function OwnerView() {
 
   async function handleDelete(id) {
     const item = items.find(i => i.id === id)
-    if (!window.confirm(`Удалить "${item?.name}"?`)) return
+    if (!window.confirm(`Удалить "${item?.name}" навсегда?`)) return
     try {
       await ownerFetch(`/items/${id}`, { method: 'DELETE' }, password)
       setItems(prev => prev.filter(i => i.id !== id))
-      setStats(prev => ({ ...prev, totalItems: (prev.totalItems||1)-1, totalSum: (prev.totalSum||0)-item.price }))
+      if (!item.sold) {
+        setStats(prev => ({ ...prev, totalItems: Math.max((prev.totalItems||1)-1, 0), totalSum: (prev.totalSum||0)-item.price }))
+      }
       showToast('Удалено', 'success')
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  async function handleMarkSold(id) {
+    const item = items.find(i => i.id === id)
+    if (!window.confirm(`Отметить "${item?.name}" как проданное?`)) return
+    try {
+      const updated = await ownerFetch(`/items/${id}/sold`, { method: 'POST' }, password)
+      setItems(prev => prev.map(i => i.id === id ? updated : i))
+      setStats(prev => ({
+        ...prev,
+        totalItems: Math.max((prev.totalItems||1)-1, 0),
+        totalSum: (prev.totalSum||0)-item.price,
+        soldCount: (prev.soldCount||0)+1,
+        soldSum: (prev.soldSum||0)+item.price,
+      }))
+      showToast('Отмечено как продано', 'success')
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  async function handleUnmarkSold(id) {
+    const item = items.find(i => i.id === id)
+    try {
+      const updated = await ownerFetch(`/items/${id}/unsold`, { method: 'POST' }, password)
+      setItems(prev => prev.map(i => i.id === id ? updated : i))
+      setStats(prev => ({
+        ...prev,
+        totalItems: (prev.totalItems||0)+1,
+        totalSum: (prev.totalSum||0)+item.price,
+        soldCount: Math.max((prev.soldCount||1)-1, 0),
+        soldSum: Math.max((prev.soldSum||0)-item.price, 0),
+      }))
+      showToast('Возвращено в продажу', 'success')
     } catch (e) {
       showToast(e.message)
     }
@@ -145,7 +186,6 @@ export default function OwnerView() {
     const a = document.createElement('a')
     a.href = url
     a.setAttribute('download', '')
-    // Передаём пароль через заголовок невозможно через <a>, используем fetch
     fetch(url, { headers: { 'x-owner-password': password } })
       .then(r => r.blob())
       .then(blob => {
@@ -158,7 +198,12 @@ export default function OwnerView() {
       .catch(e => showToast(e.message))
   }
 
-  const filteredItems = items.filter(i => filterCat === 'all' || i.category === filterCat)
+  const filteredItems = items.filter(i => {
+    if (!showSold && i.sold) return false
+    if (showSold && !i.sold) return false
+    if (filterCat !== 'all' && i.category !== filterCat) return false
+    return true
+  })
 
   // ── AUTH SCREEN ──
   if (!authed) {
@@ -197,11 +242,11 @@ export default function OwnerView() {
       <div className="stats-row">
         <div className="stat">
           <div className="stat-num">{stats.totalItems ?? 0}</div>
-          <div className="stat-label">Товаров</div>
+          <div className="stat-label">В продаже</div>
         </div>
         <div className="stat">
-          <div className="stat-num">{stats.totalOrders ?? 0}</div>
-          <div className="stat-label">Заявок</div>
+          <div className="stat-num">{stats.soldCount ?? 0}</div>
+          <div className="stat-label">Продано</div>
         </div>
         <div className="stat">
           <div className="stat-num">{(stats.totalSum ?? 0).toLocaleString('ru-RU')}</div>
@@ -216,6 +261,7 @@ export default function OwnerView() {
           Заявки
           {stats.unviewedOrders > 0 && <span className="tab-badge">{stats.unviewedOrders}</span>}
         </button>
+        <button className={tab === 'stats' ? 'active' : ''} onClick={() => setTab('stats')}>Статистика</button>
       </div>
 
       {/* ── ТОВАРЫ ── */}
@@ -225,16 +271,20 @@ export default function OwnerView() {
           <div className="add-card">
             <h3>Добавить вещь</h3>
             <form onSubmit={handleAddItem}>
-              {/* Фото */}
+              {/* Фото — до 6 штук */}
               <div
-                className="photo-upload"
+                className="photo-upload multi"
                 onClick={() => fileRef.current?.click()}
               >
-                {photoPreview
-                  ? <img src={photoPreview} alt="preview" />
-                  : <div className="photo-placeholder">📷 Загрузить фото</div>
+                {photoPreviews.length > 0
+                  ? (
+                    <div className="photo-multi-grid">
+                      {photoPreviews.map((src, i) => <img key={i} src={src} alt={`preview-${i}`} />)}
+                    </div>
+                  )
+                  : <div className="photo-placeholder">📷 Загрузить фото (до 6 шт.)</div>
                 }
-                <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display:'none' }} />
+                <input ref={fileRef} type="file" accept="image/*" multiple onChange={handlePhotoChange} style={{ display:'none' }} />
               </div>
 
               <div className="form-row">
@@ -276,8 +326,14 @@ export default function OwnerView() {
 
           {/* Список + экспорт */}
           <div className="items-header">
-            <span className="items-title">Все товары ({items.length})</span>
+            <span className="items-title">{showSold ? 'Проданные' : 'В продаже'} ({filteredItems.length})</span>
             <button className="export-btn" onClick={() => exportCSV('catalog')}>⬇ Excel</button>
+          </div>
+
+          {/* Переключатель В продаже / Продано */}
+          <div className="sold-toggle">
+            <button className={!showSold ? 'active' : ''} onClick={() => setShowSold(false)}>В продаже</button>
+            <button className={showSold ? 'active' : ''} onClick={() => setShowSold(true)}>Продано</button>
           </div>
 
           {/* Фильтр категорий */}
@@ -296,7 +352,9 @@ export default function OwnerView() {
           {loading ? (
             <div style={{ textAlign:'center', padding:'40px', color:'var(--text-hint)' }}>Загрузка…</div>
           ) : filteredItems.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'40px', color:'var(--text-hint)' }}>Нет товаров</div>
+            <div style={{ textAlign:'center', padding:'40px', color:'var(--text-hint)' }}>
+              {showSold ? 'Проданных товаров нет' : 'Нет товаров'}
+            </div>
           ) : (
             <div className="items-list">
               {filteredItems.map(item => {
@@ -304,9 +362,12 @@ export default function OwnerView() {
                 const cat = CATEGORIES_MAP[item.category]
                 const condStyle = COND_COLORS[item.condition] || {}
                 return (
-                  <div key={item.id} className="owner-item">
+                  <div key={item.id} className={`owner-item ${item.sold ? 'sold' : ''}`}>
                     <div className="owner-item-photo">
                       {photoUrl ? <img src={photoUrl} alt={item.name} /> : <span>{cat?.emoji}</span>}
+                      {item.photos && item.photos.length > 1 && (
+                        <span className="photo-count">{item.photos.length}</span>
+                      )}
                     </div>
                     <div className="owner-item-info">
                       <div className="owner-item-name">{item.name}</div>
@@ -315,18 +376,28 @@ export default function OwnerView() {
                         <span className="badge-cat">{cat?.emoji} {cat?.label}</span>
                         {item.size !== '—' && <span className="badge-size">{item.size}</span>}
                         <span className="badge-cond" style={{ background: condStyle.bg, color: condStyle.color }}>{item.condition}</span>
-                        {item.reserved_until && new Date(item.reserved_until) > new Date() && (
+                        {item.sold && <span className="badge-sold">Продано</span>}
+                        {!item.sold && item.reserved_until && new Date(item.reserved_until) > new Date() && (
                           <span className="badge-reserved">
                             🔒 До {new Date(item.reserved_until).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' })}
                           </span>
                         )}
                       </div>
-                      <div className="owner-item-date">{item.created_at}</div>
+                      <div className="owner-item-date">
+                        {item.sold ? `Продано: ${item.sold_at}` : item.created_at}
+                      </div>
                     </div>
                     <div className="owner-item-right">
                       <div className="owner-item-price">{item.price.toLocaleString('ru-RU')} ₽</div>
                       <div className="owner-item-actions">
-                        <button className="edit-btn" onClick={() => setEditingItem(item)}>✏️</button>
+                        {!item.sold ? (
+                          <>
+                            <button className="sold-btn" onClick={() => handleMarkSold(item.id)} title="Отметить продано">💰</button>
+                            <button className="edit-btn" onClick={() => setEditingItem(item)}>✏️</button>
+                          </>
+                        ) : (
+                          <button className="unsold-btn" onClick={() => handleUnmarkSold(item.id)} title="Вернуть в продажу">↩️</button>
+                        )}
                         <button className="delete-btn" onClick={() => handleDelete(item.id)}>🗑</button>
                       </div>
                     </div>
@@ -370,6 +441,9 @@ export default function OwnerView() {
           )}
         </>
       )}
+
+      {/* ── СТАТИСТИКА ── */}
+      {tab === 'stats' && <SalesStats password={password} />}
 
       {toast && <div className={`toast ${toast.type === 'success' ? 'toast-success' : 'toast-error'}`}>{toast.msg}</div>}
 

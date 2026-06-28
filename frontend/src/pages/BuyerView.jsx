@@ -4,6 +4,7 @@ import { SECTIONS, SUBCATEGORIES } from '../constants.js'
 import ItemCard from '../components/ItemCard.jsx'
 import CartPanel from '../components/CartPanel.jsx'
 import BookingModal from '../components/BookingModal.jsx'
+import FilterPanel from '../components/FilterPanel.jsx'
 import './BuyerView.css'
 
 export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClearCart }) {
@@ -14,9 +15,13 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
   const [search, setSearch] = useState('')
   const [view, setView] = useState('catalog') // 'catalog' | 'cart'
   const [showBooking, setShowBooking] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' })
+  const [sizeFilter, setSizeFilter] = useState('')
   const [toast, setToast] = useState(null)
 
   const subcats = SUBCATEGORIES[section] || []
+  const hasActiveFilters = priceRange.min || priceRange.max || sizeFilter
 
   const SECTION_PREFIX = { women: 'w-', men: 'm-', kids: 'k-', home: 'home' }
 
@@ -28,6 +33,9 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
         params.set('category', subcategory)
       }
       if (search.trim()) params.set('search', search.trim())
+      if (priceRange.min) params.set('minPrice', priceRange.min)
+      if (priceRange.max) params.set('maxPrice', priceRange.max)
+      if (sizeFilter) params.set('size', sizeFilter)
       const data = await apiFetch(`/items?${params}`)
       const prefix = SECTION_PREFIX[section]
       const hasPrefix = i => i.category.startsWith('w-') || i.category.startsWith('m-') || i.category.startsWith('k-') || i.category === 'home'
@@ -46,7 +54,7 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
     } finally {
       setLoading(false)
     }
-  }, [section, subcategory, search])
+  }, [section, subcategory, search, priceRange, sizeFilter])
 
   useEffect(() => {
     const t = setTimeout(fetchItems, search ? 400 : 0)
@@ -136,10 +144,16 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
             <span className="catalog-count">
               {loading ? '…' : `${items.length} ${plural(items.length, ['вещь','вещи','вещей'])}`}
             </span>
-            <button className="cart-btn" onClick={() => setView('cart')}>
-              🛒 Корзина
-              {cart.length > 0 && <span className="cart-badge">{cart.length}</span>}
-            </button>
+            <div style={{ display:'flex', gap:10 }}>
+              <button className={`filter-btn ${hasActiveFilters ? 'has-active' : ''}`} onClick={() => setShowFilters(true)}>
+                ⚙ Фильтры
+                {hasActiveFilters && <span className="cart-badge">•</span>}
+              </button>
+              <button className="cart-btn" onClick={() => setView('cart')}>
+                🛒 Корзина
+                {cart.length > 0 && <span className="cart-badge">{cart.length}</span>}
+              </button>
+            </div>
           </div>
 
           {/* Сетка товаров */}
@@ -182,6 +196,15 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
           cart={cart}
           onClose={() => setShowBooking(false)}
           onSuccess={handleBookingSuccess}
+        />
+      )}
+
+      {showFilters && (
+        <FilterPanel
+          priceRange={priceRange}
+          sizeFilter={sizeFilter}
+          onApply={(price, size) => { setPriceRange(price); setSizeFilter(size); setShowFilters(false) }}
+          onClose={() => setShowFilters(false)}
         />
       )}
 

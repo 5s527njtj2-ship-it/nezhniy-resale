@@ -17,14 +17,24 @@ async function initDb() {
       price       INTEGER NOT NULL,
       condition   TEXT    NOT NULL,
       photo       TEXT,
+      photos      TEXT[]  NOT NULL DEFAULT '{}',
       reserved_until TIMESTAMP,
+      sold        BOOLEAN NOT NULL DEFAULT FALSE,
+      sold_at     TIMESTAMP,
       created_at  TIMESTAMP NOT NULL DEFAULT NOW()
     );
   `);
 
-  // Миграция: добавляем колонку reserved_until, если таблица уже существовала без неё
+  // Миграции для уже существующих таблиц (если столбцов ещё нет)
+  await pool.query(`ALTER TABLE items ADD COLUMN IF NOT EXISTS reserved_until TIMESTAMP;`);
+  await pool.query(`ALTER TABLE items ADD COLUMN IF NOT EXISTS photos TEXT[] NOT NULL DEFAULT '{}';`);
+  await pool.query(`ALTER TABLE items ADD COLUMN IF NOT EXISTS sold BOOLEAN NOT NULL DEFAULT FALSE;`);
+  await pool.query(`ALTER TABLE items ADD COLUMN IF NOT EXISTS sold_at TIMESTAMP;`);
+
+  // Для уже добавленных товаров с одним фото — переносим его в массив photos, если массив пуст
   await pool.query(`
-    ALTER TABLE items ADD COLUMN IF NOT EXISTS reserved_until TIMESTAMP;
+    UPDATE items SET photos = ARRAY[photo]
+    WHERE photo IS NOT NULL AND (photos IS NULL OR array_length(photos, 1) IS NULL);
   `);
 
   await pool.query(`

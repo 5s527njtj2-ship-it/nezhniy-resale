@@ -168,10 +168,17 @@ app.get('/api/items', async (req, res) => {
     // Снимаем истёкшие брони (старше 1 часа)
     await pool.query(`UPDATE items SET reserved_until = NULL WHERE reserved_until < NOW()`);
 
-    const { category, search } = req.query;
+    const { category, search, minPrice, maxPrice, size, includeSold } = req.query;
+    const isOwner = req.headers['x-owner-password'] === process.env.OWNER_PASSWORD;
+
     let query = 'SELECT * FROM items WHERE 1=1';
     const params = [];
     let idx = 1;
+
+    // Покупателю никогда не показываем проданное; владельцу — только если явно запрошено
+    if (!isOwner || includeSold !== 'true') {
+      query += ` AND sold = FALSE`;
+    }
 
     if (category && category !== 'all') {
       query += ` AND category = $${idx++}`;
@@ -181,6 +188,18 @@ app.get('/api/items', async (req, res) => {
       query += ` AND (LOWER(name) LIKE $${idx++} OR LOWER(art) LIKE $${idx++})`;
       const q = `%${search.toLowerCase()}%`;
       params.push(q, q);
+    }
+    if (minPrice) {
+      query += ` AND price >= $${idx++}`;
+      params.push(parseInt(minPrice));
+    }
+    if (maxPrice) {
+      query += ` AND price <= $${idx++}`;
+      params.push(parseInt(maxPrice));
+    }
+    if (size) {
+      query += ` AND size = $${idx++}`;
+      params.push(size);
     }
 
     query += ' ORDER BY created_at DESC';
@@ -193,7 +212,7 @@ app.get('/api/items', async (req, res) => {
 });
 
 // Добавить товар (только владелец)
-app.post('/api/items', requireOwner, upload.single('photo'), async (req, res) => {
+app.post('/api/items', requireOwner, upload.array('photos', 6), async (req, res) => {
   try {
     const { name, category, size, price, condition } = req.body;
 
@@ -201,18 +220,21 @@ app.post('/api/items', requireOwner, upload.single('photo'), async (req, res) =>
       return res.status(400).json({ error: 'Заполните все обязательные поля' });
     }
 
-    let photoUrl = null;
-    if (req.file) {
-      const filename = `${uuidv4()}.webp`;
-      photoUrl = await uploadPhotoToStorage(req.file.buffer, filename);
+    let photoUrls = [];
+    if (req.files && req.files.length) {
+      for (const file of req.files) {
+        const filename = `${uuidv4()}.webp`;
+        const url = await uploadPhotoToStorage(file.buffer, filename);
+        photoUrls.push(url);
+      }
     }
 
     const art = await nextArt();
     const { rows } = await pool.query(
-      `INSERT INTO items (art, name, category, size, price, condition, photo)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO items (art, name, category, size, price, condition, photo, photos)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [art, name, category, size || 'One size', parseInt(price), condition, photoUrl]
+      [art, name, category, size || 'One size', parseInt(price), condition, photoUrls[0] || null, photoUrls]
     );
 
     res.status(201).json(rows[0]);
@@ -229,9 +251,9 @@ app.delete('/api/items/:id', requireOwner, async (req, res) => {
     const item = rows[0];
     if (!item) return res.status(404).json({ error: 'Товар не найден' });
 
-    if (item.photo) {
-      // photo хранит полный URL — извлекаем имя файла
-      const filename = item.photo.split('/').pop();
+    const photoList = item.photos && item.photos.length ? item.photos : (item.photo ? [item.photo] : []);
+    for (const url of photoList) {
+      const filename = url.split('/').pop();
       await deletePhotoFromStorage(filename);
     }
 
@@ -244,39 +266,77 @@ app.delete('/api/items/:id', requireOwner, async (req, res) => {
 });
 
 // Редактировать товар (только владелец)
-app.put('/api/items/:id', requireOwner, upload.single('photo'), async (req, res) => {
+app.put('/api/items/:id', requireOwner, upload.array('photos', 6), async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM items WHERE id = $1', [req.params.id]);
     const existing = rows[0];
     if (!existing) return res.status(404).json({ error: 'Товар не найден' });
 
-    const { name, category, size, price, condition } = req.body;
+    const { name, category, size, price, condition, keepPhotos } = req.body;
 
     if (!name || !category || !price || !condition) {
       return res.status(400).json({ error: 'Заполните все обязательные поля' });
     }
 
-    let photoUrl = existing.photo;
-    if (req.file) {
-      // удаляем старое фото, если было, и загружаем новое
-      if (existing.photo) {
-        const oldFilename = existing.photo.split('/').pop();
-        await deletePhotoFromStorage(oldFilename);
+    // keepPhotos — JSON-массив URL фото, которые нужно оставить (присылает фронтенд)
+    let photoUrls = existing.photos && existing.photos.length ? [...existing.photos] : (existing.photo ? [existing.photo] : []);
+    if (keepPhotos !== undefined) {
+      const keep = JSON.parse(keepPhotos);
+      const removed = photoUrls.filter(u => !keep.includes(u));
+      for (const url of removed) {
+        await deletePhotoFromStorage(url.split('/').pop());
       }
-      const filename = `${uuidv4()}.webp`;
-      photoUrl = await uploadPhotoToStorage(req.file.buffer, filename);
+      photoUrls = keep;
+    }
+
+    if (req.files && req.files.length) {
+      for (const file of req.files) {
+        const filename = `${uuidv4()}.webp`;
+        const url = await uploadPhotoToStorage(file.buffer, filename);
+        photoUrls.push(url);
+      }
     }
 
     const { rows: updated } = await pool.query(
-      `UPDATE items SET name = $1, category = $2, size = $3, price = $4, condition = $5, photo = $6
-       WHERE id = $7 RETURNING *`,
-      [name, category, size || 'One size', parseInt(price), condition, photoUrl, req.params.id]
+      `UPDATE items SET name = $1, category = $2, size = $3, price = $4, condition = $5, photo = $6, photos = $7
+       WHERE id = $8 RETURNING *`,
+      [name, category, size || 'One size', parseInt(price), condition, photoUrls[0] || null, photoUrls, req.params.id]
     );
 
     res.json(updated[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при редактировании товара' });
+  }
+});
+
+// Отметить товар как проданный (только владелец)
+app.post('/api/items/:id/sold', requireOwner, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE items SET sold = TRUE, sold_at = NOW(), reserved_until = NULL WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Товар не найден' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при обновлении товара' });
+  }
+});
+
+// Вернуть товар в продажу (отменить статус "продано")
+app.post('/api/items/:id/unsold', requireOwner, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE items SET sold = FALSE, sold_at = NULL WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Товар не найден' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при обновлении товара' });
   }
 });
 
@@ -388,10 +448,12 @@ app.get('/api/export/catalog', requireOwner, async (req, res) => {
       top:'Верх', bottom:'Низ', dress:'Платья и юбки', outer:'Верхняя одежда',
       shoes:'Обувь', bags:'Сумки', acc:'Аксессуары', sport:'Спорт', home:'Интерьер'
     };
-    const csvRows = [['Артикул','Название','Категория','Размер','Цена','Состояние','Дата','Фото (ссылка)','Фото (формула для Google Sheets)']];
+    const csvRows = [['Артикул','Название','Категория','Размер','Цена','Состояние','Статус','Дата добавления','Дата продажи','Фото (ссылка)','Фото (формула для Google Sheets)']];
     items.forEach(i => csvRows.push([
       i.art, i.name, CATEGORIES[i.category] || i.category,
-      i.size, i.price, i.condition, i.created_at,
+      i.size, i.price, i.condition,
+      i.sold ? 'Продано' : 'В продаже',
+      i.created_at, i.sold_at || '',
       i.photo || '',
       i.photo ? `=IMAGE("${i.photo}")` : ''
     ]));
@@ -441,7 +503,8 @@ app.post('/api/auth/check', (req, res) => {
 // Статистика (только владелец)
 app.get('/api/stats', requireOwner, async (req, res) => {
   try {
-    const { rows: itemRows } = await pool.query('SELECT COUNT(*) as c, COALESCE(SUM(price),0) as s FROM items');
+    const { rows: itemRows } = await pool.query(`SELECT COUNT(*) as c, COALESCE(SUM(price),0) as s FROM items WHERE sold = FALSE`);
+    const { rows: soldRows } = await pool.query(`SELECT COUNT(*) as c, COALESCE(SUM(price),0) as s FROM items WHERE sold = TRUE`);
     const { rows: orderRows } = await pool.query('SELECT COUNT(*) as c FROM orders');
     const { rows: unviewedRows } = await pool.query('SELECT COUNT(*) as c FROM orders WHERE viewed = FALSE');
     res.json({
@@ -449,10 +512,53 @@ app.get('/api/stats', requireOwner, async (req, res) => {
       totalOrders: parseInt(orderRows[0].c),
       totalSum: parseInt(itemRows[0].s),
       unviewedOrders: parseInt(unviewedRows[0].c),
+      soldCount: parseInt(soldRows[0].c),
+      soldSum: parseInt(soldRows[0].s),
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при загрузке статистики' });
+  }
+});
+
+// Детальная статистика продаж по месяцам (только владелец)
+app.get('/api/stats/sales', requireOwner, async (req, res) => {
+  try {
+    const { rows: monthly } = await pool.query(`
+      SELECT
+        TO_CHAR(sold_at, 'YYYY-MM') as month,
+        COUNT(*) as count,
+        COALESCE(SUM(price), 0) as sum
+      FROM items
+      WHERE sold = TRUE AND sold_at IS NOT NULL
+      GROUP BY TO_CHAR(sold_at, 'YYYY-MM')
+      ORDER BY month DESC
+      LIMIT 12
+    `);
+
+    const { rows: byCategory } = await pool.query(`
+      SELECT category, COUNT(*) as count, COALESCE(SUM(price), 0) as sum
+      FROM items
+      WHERE sold = TRUE
+      GROUP BY category
+      ORDER BY sum DESC
+    `);
+
+    const { rows: avgRows } = await pool.query(`
+      SELECT COALESCE(AVG(price), 0) as avg_price, COUNT(*) as total_sold, COALESCE(SUM(price), 0) as total_revenue
+      FROM items WHERE sold = TRUE
+    `);
+
+    res.json({
+      monthly: monthly.map(r => ({ month: r.month, count: parseInt(r.count), sum: parseInt(r.sum) })),
+      byCategory: byCategory.map(r => ({ category: r.category, count: parseInt(r.count), sum: parseInt(r.sum) })),
+      avgPrice: Math.round(parseFloat(avgRows[0].avg_price)),
+      totalSold: parseInt(avgRows[0].total_sold),
+      totalRevenue: parseInt(avgRows[0].total_revenue),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при загрузке статистики продаж' });
   }
 });
 

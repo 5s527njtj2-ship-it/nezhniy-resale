@@ -210,3 +210,18 @@
 }
 .section-tab.active { color: var(--black); }
 .section-tab.active::after { transform: scaleX(1); }
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.filter-btn.has-active { color: var(--black); }

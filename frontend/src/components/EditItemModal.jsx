@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
 import { CATEGORIES, CONDITIONS, getSizesForCategory } from '../constants.js'
-import { getPhotoUrl } from '../api.js'
 import './EditItemModal.css'
 
 export default function EditItemModal({ item, password, onClose, onSaved }) {
@@ -11,17 +10,24 @@ export default function EditItemModal({ item, password, onClose, onSaved }) {
     price: item.price,
     condition: item.condition,
   })
-  const [photoFile, setPhotoFile] = useState(null)
-  const [photoPreview, setPhotoPreview] = useState(getPhotoUrl(item.photo))
+  // Существующие фото товара (полные URL) — можно убирать по одному
+  const [existingPhotos, setExistingPhotos] = useState(item.photos && item.photos.length ? item.photos : (item.photo ? [item.photo] : []))
+  const [newFiles, setNewFiles] = useState([])
+  const [newPreviews, setNewPreviews] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const fileRef = useRef()
 
   function handlePhotoChange(e) {
-    const file = e.target.files[0]
-    if (!file) return
-    setPhotoFile(file)
-    setPhotoPreview(URL.createObjectURL(file))
+    const totalSlots = 6 - existingPhotos.length
+    const files = Array.from(e.target.files).slice(0, Math.max(totalSlots, 0))
+    if (!files.length) return
+    setNewFiles(files)
+    setNewPreviews(files.map(f => URL.createObjectURL(f)))
+  }
+
+  function removeExistingPhoto(url) {
+    setExistingPhotos(prev => prev.filter(p => p !== url))
   }
 
   async function handleSave(e) {
@@ -32,7 +38,8 @@ export default function EditItemModal({ item, password, onClose, onSaved }) {
     try {
       const fd = new FormData()
       Object.entries(form).forEach(([k, v]) => fd.append(k, v))
-      if (photoFile) fd.append('photo', photoFile)
+      fd.append('keepPhotos', JSON.stringify(existingPhotos))
+      newFiles.forEach(f => fd.append('photos', f))
 
       const base = import.meta.env.VITE_API_URL || '/api'
       const res = await fetch(`${base}/items/${item.id}`, {
@@ -50,6 +57,8 @@ export default function EditItemModal({ item, password, onClose, onSaved }) {
     }
   }
 
+  const totalPhotoCount = existingPhotos.length + newPreviews.length
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal edit-modal">
@@ -59,16 +68,31 @@ export default function EditItemModal({ item, password, onClose, onSaved }) {
         </div>
 
         <form onSubmit={handleSave} className="edit-form">
-          <div
-            className="photo-upload"
-            onClick={() => fileRef.current?.click()}
-          >
-            {photoPreview
-              ? <img src={photoPreview} alt="preview" />
-              : <div className="photo-placeholder">📷 Загрузить фото</div>
-            }
-            <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display:'none' }} />
+          <label className="photo-edit-label">Фото ({totalPhotoCount}/6)</label>
+          <div className="photo-edit-grid">
+            {existingPhotos.map(url => (
+              <div className="photo-edit-item" key={url}>
+                <img src={url} alt="фото товара" />
+                <button type="button" className="photo-remove-btn" onClick={() => removeExistingPhoto(url)}>✕</button>
+              </div>
+            ))}
+            {newPreviews.map((src, i) => (
+              <div className="photo-edit-item" key={`new-${i}`}>
+                <img src={src} alt="новое фото" />
+                <span className="photo-new-tag">новое</span>
+              </div>
+            ))}
+            {totalPhotoCount < 6 && (
+              <button
+                type="button"
+                className="photo-add-btn"
+                onClick={() => fileRef.current?.click()}
+              >
+                ＋
+              </button>
+            )}
           </div>
+          <input ref={fileRef} type="file" accept="image/*" multiple onChange={handlePhotoChange} style={{ display:'none' }} />
 
           <div className="form-row">
             <div className="form-group full">
