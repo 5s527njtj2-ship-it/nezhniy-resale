@@ -88,7 +88,6 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
                 className={`cat-chip ${category === cat.id ? 'active' : ''}`}
                 onClick={() => setCategory(cat.id)}
               >
-                <span>{cat.emoji}</span>
                 {cat.label}
               </button>
             ))}

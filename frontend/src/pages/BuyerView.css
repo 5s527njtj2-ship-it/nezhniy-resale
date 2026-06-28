@@ -36,7 +36,7 @@
   display: flex;
   gap: 0;
   overflow-x: auto;
-  padding: 18px 18px 14px;
+  padding: 18px 18px 0;
   scrollbar-width: none;
   border-bottom: 1px solid var(--border);
 }
@@ -46,19 +46,33 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 0 14px 8px 0;
+  padding: 0 16px 12px 0;
   border: none;
   background: transparent;
   color: var(--text-hint);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: color .15s;
+  transition: color .2s;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 1.1px;
+  position: relative;
 }
-.cat-chip.active { color: var(--black); }
+.cat-chip::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 16px;
+  bottom: 0;
+  height: 1.5px;
+  background: var(--black);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .2s ease;
+}
+.cat-chip.active { color: var(--black); font-weight: 700; }
+.cat-chip.active::after { transform: scaleX(1); }
 
 /* Topbar */
 .catalog-topbar {
