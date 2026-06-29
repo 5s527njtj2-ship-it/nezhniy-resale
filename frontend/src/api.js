@@ -2,11 +2,11 @@ const BASE = import.meta.env.VITE_API_URL || '/api'
 
 export async function apiFetch(path, options = {}) {
   const res = await fetch(BASE + path, {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,
     },
-    ...options,
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
