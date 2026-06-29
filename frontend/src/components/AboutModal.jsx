@@ -1,6 +1,16 @@
 import './AboutModal.css'
 
+const MAP_URL = 'https://yandex.ru/maps/?text=Москва%2C%20Петровско-Разумовский%20проезд%2C%2015'
+
 export default function AboutModal({ onClose }) {
+  function handleRoute(e) {
+    const tg = window.Telegram?.WebApp
+    if (tg?.openLink) {
+      e.preventDefault()
+      tg.openLink(MAP_URL)
+    }
+  }
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal about-modal">
@@ -13,6 +23,15 @@ export default function AboutModal({ onClose }) {
           <div className="about-block">
             <div className="about-label">Адрес</div>
             <div className="about-value">Нежный Ресейл<br />Москва, Петровско-Разумовский пр-д, 15</div>
+            <a
+              href={MAP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="route-btn"
+              onClick={handleRoute}
+            >
+              📍 Построить маршрут
+            </a>
           </div>
 
           <div className="about-block">

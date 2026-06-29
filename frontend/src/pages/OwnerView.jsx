@@ -15,6 +15,9 @@ export default function OwnerView() {
   const [orders, setOrders] = useState([])
   const [stats, setStats] = useState({})
   const [filterCat, setFilterCat] = useState('all')
+  const [orderSearch, setOrderSearch] = useState('')
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all')
+  const [orderDateFilter, setOrderDateFilter] = useState('all')
   const [showSold, setShowSold] = useState(false)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState(null)
@@ -214,6 +217,31 @@ export default function OwnerView() {
     if (!showSold && i.sold) return false
     if (showSold && !i.sold) return false
     if (filterCat !== 'all' && i.category !== filterCat) return false
+    return true
+  })
+
+  const filteredOrders = orders.filter(o => {
+    if (orderStatusFilter !== 'all' && (o.status || 'Новая') !== orderStatusFilter) return false
+
+    if (orderDateFilter !== 'all') {
+      const created = new Date(o.created_at)
+      const now = new Date()
+      const daysAgo = (now - created) / (1000 * 60 * 60 * 24)
+      if (orderDateFilter === 'today' && daysAgo > 1) return false
+      if (orderDateFilter === 'week' && daysAgo > 7) return false
+      if (orderDateFilter === 'month' && daysAgo > 30) return false
+    }
+
+    if (orderSearch.trim()) {
+      const q = orderSearch.trim().toLowerCase()
+      const numberStr = o.order_number ? String(o.order_number).padStart(4, '0') : ''
+      const matches =
+        o.buyer_name.toLowerCase().includes(q) ||
+        o.phone.toLowerCase().includes(q) ||
+        numberStr.includes(q.replace('№', '').replace('#', ''))
+      if (!matches) return false
+    }
+
     return true
   })
 
@@ -429,14 +457,51 @@ export default function OwnerView() {
       {tab === 'orders' && (
         <>
           <div className="items-header">
-            <span className="items-title">Заявки ({orders.length})</span>
+            <span className="items-title">Заявки ({filteredOrders.length})</span>
             <button className="export-btn" onClick={() => exportCSV('orders')}>⬇ Excel</button>
           </div>
-          {orders.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'40px', color:'var(--text-hint)' }}>Заявок пока нет</div>
+
+          <div className="order-search-bar">
+            <input
+              type="text"
+              placeholder="Поиск по имени, телефону или №"
+              value={orderSearch}
+              onChange={e => setOrderSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="order-filters-row">
+            <select
+              className="order-filter-select"
+              value={orderStatusFilter}
+              onChange={e => setOrderStatusFilter(e.target.value)}
+            >
+              <option value="all">Все статусы</option>
+              <option>Новая</option>
+              <option>В обработке</option>
+              <option>Готово к выдаче</option>
+              <option>Завершена</option>
+              <option>Отменена</option>
+            </select>
+            <select
+              className="order-filter-select"
+              value={orderDateFilter}
+              onChange={e => setOrderDateFilter(e.target.value)}
+            >
+              <option value="all">За всё время</option>
+              <option value="today">Сегодня</option>
+              <option value="week">За неделю</option>
+              <option value="month">За месяц</option>
+            </select>
+          </div>
+
+          {filteredOrders.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'40px', color:'var(--text-hint)' }}>
+              {orders.length === 0 ? 'Заявок пока нет' : 'Ничего не найдено'}
+            </div>
           ) : (
             <div className="orders-list">
-              {orders.map(order => (
+              {filteredOrders.map(order => (
                 <div key={order.id} className={`order-card ${order.status === 'Отменена' ? 'cancelled' : ''}`}>
                   <div className="order-top">
                     <div>

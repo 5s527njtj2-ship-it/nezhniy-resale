@@ -1,29 +1,18 @@
-import { useState } from 'react'
-import { getPhotoUrl, apiFetch } from '../api.js'
 import { COND_COLORS, CATEGORIES_MAP } from '../constants.js'
-import PhotoGallery from './PhotoGallery.jsx'
+import { getPhotoUrl } from '../api.js'
 import './ItemCard.css'
 
 const NEW_DAYS_THRESHOLD = 3
 
-export default function ItemCard({ item, inCart, onAdd, onRemove, isFavorite, onToggleFavorite }) {
-  const [showGallery, setShowGallery] = useState(false)
+export default function ItemCard({ item, inCart, onAdd, onRemove, isFavorite, onToggleFavorite, onOpen }) {
   const photoUrl = getPhotoUrl(item.photo)
   const condStyle = COND_COLORS[item.condition] || {}
   const cat = CATEGORIES_MAP[item.category]
   const isReserved = item.reserved_until && new Date(item.reserved_until) > new Date()
-  const allPhotos = item.photos && item.photos.length ? item.photos : (item.photo ? [item.photo] : [])
-  const photoCount = allPhotos.length
+  const photoCount = item.photos && item.photos.length ? item.photos.length : (item.photo ? 1 : 0)
   const hasDiscount = item.old_price && item.old_price > item.price
   const discountPercent = hasDiscount ? Math.round((1 - item.price / item.old_price) * 100) : 0
   const isNew = item.created_at && (Date.now() - new Date(item.created_at).getTime()) < NEW_DAYS_THRESHOLD * 24 * 60 * 60 * 1000
-
-  function handlePhotoClick(e) {
-    e.stopPropagation()
-    if (photoCount === 0) return
-    setShowGallery(true)
-    apiFetch(`/items/${item.id}/view`, { method: 'POST' }).catch(() => {})
-  }
 
   function handleShare(e) {
     e.stopPropagation()
@@ -37,8 +26,8 @@ export default function ItemCard({ item, inCart, onAdd, onRemove, isFavorite, on
   }
 
   return (
-    <div className="item-card">
-      <div className={`item-photo ${item.sold ? 'sold-overlay' : ''}`} onClick={handlePhotoClick}>
+    <div className="item-card" onClick={() => onOpen(item)}>
+      <div className={`item-photo ${item.sold ? 'sold-overlay' : ''}`}>
         {photoUrl
           ? <img src={photoUrl} alt={item.name} loading="lazy" />
           : <div className="item-photo-placeholder">{cat?.emoji || '👗'}</div>
@@ -91,10 +80,6 @@ export default function ItemCard({ item, inCart, onAdd, onRemove, isFavorite, on
         </div>
         <div className="item-art">{item.art}</div>
       </div>
-
-      {showGallery && (
-        <PhotoGallery photos={allPhotos} onClose={() => setShowGallery(false)} />
-      )}
     </div>
   )
 }

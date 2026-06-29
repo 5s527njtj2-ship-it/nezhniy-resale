@@ -6,6 +6,7 @@ import CartPanel from '../components/CartPanel.jsx'
 import BookingModal from '../components/BookingModal.jsx'
 import FilterPanel from '../components/FilterPanel.jsx'
 import MyOrders from '../components/MyOrders.jsx'
+import PhotoGallery from '../components/PhotoGallery.jsx'
 import './BuyerView.css'
 
 const SORT_OPTIONS = [
@@ -28,6 +29,7 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
   const [sortBy, setSortBy] = useState('new')
   const [showSortMenu, setShowSortMenu] = useState(false)
   const [toast, setToast] = useState(null)
+  const [openedItem, setOpenedItem] = useState(null)
 
   const subcats = SUBCATEGORIES[section] || []
   const hasActiveFilters = priceRange.min || priceRange.max || sizeFilter
@@ -230,6 +232,7 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
                   onRemove={() => handleRemove(item.id)}
                   isFavorite={isFavorite(item.id)}
                   onToggleFavorite={() => handleToggleFavorite(item)}
+                  onOpen={setOpenedItem}
                 />
               ))}
             </div>
@@ -259,6 +262,7 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
                   onRemove={() => handleRemove(item.id)}
                   isFavorite={true}
                   onToggleFavorite={() => handleToggleFavorite(item)}
+                  onOpen={setOpenedItem}
                 />
               ))}
             </div>
@@ -300,6 +304,20 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
           sizeFilter={sizeFilter}
           onApply={(price, size) => { setPriceRange(price); setSizeFilter(size); setShowFilters(false) }}
           onClose={() => setShowFilters(false)}
+        />
+      )}
+
+      {openedItem && (
+        <PhotoGallery
+          item={openedItem}
+          photos={openedItem.photos && openedItem.photos.length ? openedItem.photos : (openedItem.photo ? [openedItem.photo] : [])}
+          onClose={() => setOpenedItem(null)}
+          inCart={inCart(openedItem.id)}
+          onAdd={() => handleAdd(openedItem)}
+          onRemove={() => handleRemove(openedItem.id)}
+          isFavorite={isFavorite(openedItem.id)}
+          onToggleFavorite={() => handleToggleFavorite(openedItem)}
+          onOpenItem={setOpenedItem}
         />
       )}
 

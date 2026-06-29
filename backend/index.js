@@ -165,6 +165,39 @@ async function sendTelegramNotification(order) {
   }
 }
 
+async function sendBuyerStatusNotification(order, newStatus) {
+  if (!process.env.BOT_TOKEN || !order.telegram_id) return;
+
+  const STATUS_EMOJI = {
+    'В обработке':     '🔧',
+    'Готово к выдаче': '✅',
+    'Завершена':       '🎉',
+    'Отменена':        '❌',
+  };
+
+  const numberLabel = `№${String(order.order_number).padStart(4, '0')}`;
+  const text =
+    `${STATUS_EMOJI[newStatus] || 'ℹ️'} *Заявка ${numberLabel}*\n\n` +
+    `Статус изменён: *${newStatus}*\n\n` +
+    (newStatus === 'Готово к выдаче' ? 'Вещи ждут вас в магазине!' : '');
+
+  const url = `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`;
+
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: order.telegram_id,
+        text,
+        parse_mode: 'Markdown',
+      }),
+    });
+  } catch (err) {
+    console.error('Ошибка отправки покупателю в Telegram:', err.message);
+  }
+}
+
 // ─────────────────────────────────────────────
 // ROUTES — Товары
 // ─────────────────────────────────────────────
@@ -239,6 +272,27 @@ app.post('/api/items/by-ids', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при загрузке товаров' });
+  }
+});
+
+// Похожие товары: та же категория, опционально тот же размер, без проданных и без самого товара
+app.get('/api/items/:id/similar', async (req, res) => {
+  try {
+    const { rows: current } = await pool.query('SELECT * FROM items WHERE id = $1', [req.params.id]);
+    if (!current[0]) return res.json([]);
+    const item = current[0];
+
+    const { rows } = await pool.query(
+      `SELECT * FROM items
+       WHERE category = $1 AND id != $2 AND sold = FALSE
+       ORDER BY (size = $3) DESC, created_at DESC
+       LIMIT 6`,
+      [item.category, item.id, item.size]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при загрузке похожих товаров' });
   }
 });
 
@@ -541,6 +595,13 @@ app.post('/api/orders/:id/status', requireOwner, async (req, res) => {
       [status, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Заявка не найдена' });
+
+    try {
+      await sendBuyerStatusNotification(rows[0], status);
+    } catch (notifyErr) {
+      console.error('Ошибка уведомления покупателя:', notifyErr.message);
+    }
+
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
