@@ -92,3 +92,35 @@
   border-top: 1px solid var(--border);
   padding-top: 10px;
 }
+
+.my-order-cancel-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 0;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  transition: opacity .15s;
+}
+.my-order-cancel-btn:disabled { opacity: 0.5; }
+.my-order-cancel-btn:active:not(:disabled) { opacity: 0.7; }
+
+.my-orders-toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--black);
+  color: #fff;
+  padding: 13px 24px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+  z-index: 300;
+}

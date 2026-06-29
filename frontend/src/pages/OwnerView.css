@@ -457,3 +457,7 @@
   font-weight: 600;
   -webkit-appearance: none;
 }
+
+.order-card.cancelled {
+  opacity: 0.55;
+}

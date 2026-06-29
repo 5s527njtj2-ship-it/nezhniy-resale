@@ -490,6 +490,45 @@ app.post('/api/orders/mark-viewed', requireOwner, async (req, res) => {
 });
 
 // Изменить статус заявки (только владелец)
+// Отменить заявку покупателем (публично, но только свою — проверка по telegram_id)
+app.post('/api/orders/:id/cancel', async (req, res) => {
+  try {
+    const { telegram_id } = req.body;
+    if (!telegram_id) {
+      return res.status(400).json({ error: 'Не удалось определить покупателя' });
+    }
+
+    const { rows: existing } = await pool.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+    const order = existing[0];
+    if (!order) return res.status(404).json({ error: 'Заявка не найдена' });
+    if (order.telegram_id !== String(telegram_id)) {
+      return res.status(403).json({ error: 'Это не ваша заявка' });
+    }
+    if (order.status === 'Завершена') {
+      return res.status(400).json({ error: 'Завершённую заявку нельзя отменить' });
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE orders SET status = 'Отменена' WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+
+    // Снимаем бронь с товаров этой заявки, чтобы они снова стали доступны
+    const arts = order.arts.split(', ').filter(Boolean);
+    if (arts.length) {
+      await pool.query(
+        `UPDATE items SET reserved_until = NULL WHERE art = ANY($1)`,
+        [arts]
+      );
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при отмене заявки' });
+  }
+});
+
 app.post('/api/orders/:id/status', requireOwner, async (req, res) => {
   try {
     const { status } = req.body;

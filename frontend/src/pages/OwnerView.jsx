@@ -437,7 +437,7 @@ export default function OwnerView() {
           ) : (
             <div className="orders-list">
               {orders.map(order => (
-                <div key={order.id} className="order-card">
+                <div key={order.id} className={`order-card ${order.status === 'Отменена' ? 'cancelled' : ''}`}>
                   <div className="order-top">
                     <div>
                       <div className="order-number-badge">
