@@ -36,7 +36,7 @@ export default function AboutModal({ onClose }) {
 
           <div className="about-block">
             <div className="about-label">Режим работы</div>
-            <div className="about-value">Уточняйте время работы по телефону или в Telegram</div>
+            <div className="about-value">Пн–Сб: 11:00–21:00<br />Вс: выходной</div>
           </div>
 
           <div className="about-block">
@@ -54,6 +54,10 @@ export default function AboutModal({ onClose }) {
               никаких реплик и подделок. Большой выбор брендовой одежды, обуви и аксессуаров.
               Рейтинг 4.8 на Яндекс Картах (167 оценок).
             </div>
+          </div>
+
+          <div className="about-discount-block">
+            🎁 При покупке от 3 вещей — скидка 10% на весь заказ
           </div>
 
           <div className="about-note">

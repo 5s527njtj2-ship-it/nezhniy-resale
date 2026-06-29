@@ -52,6 +52,12 @@ body.dark {
 
 #root { min-height: 100vh; }
 button { font-family: inherit; cursor: pointer; }
-input, select, textarea { font-family: inherit; }
+input, select, textarea {
+  font-family: inherit;
+  background: transparent;
+  color: inherit;
+  accent-color: var(--black);
+}
+input::placeholder, textarea::placeholder { color: var(--text-hint); }
 img { display: block; }
 ::-webkit-scrollbar { display: none; }
