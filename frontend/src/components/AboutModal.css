@@ -79,3 +79,13 @@
   text-decoration: none;
 }
 .route-btn:active { opacity: 0.7; }
+
+.about-discount-block {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3B6D11;
+  background: #EAF3DE;
+  padding: 12px 14px;
+  border-radius: 12px;
+  line-height: 1.5;
+}

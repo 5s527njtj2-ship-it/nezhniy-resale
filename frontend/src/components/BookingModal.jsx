@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { apiFetch } from '../api.js'
+import { calcCartTotals } from '../cartDiscount.js'
 import './BookingModal.css'
 
 export default function BookingModal({ cart, onClose, onSuccess, telegramId }) {
@@ -47,6 +48,7 @@ export default function BookingModal({ cart, onClose, onSuccess, telegramId }) {
     const numberLabel = confirmedOrder.order_number
       ? `№${String(confirmedOrder.order_number).padStart(4, '0')}`
       : ''
+    const { hasDiscount, discountAmount, total } = calcCartTotals(cart)
     return (
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && handleDone()}>
         <div className="modal">
@@ -70,9 +72,16 @@ export default function BookingModal({ cart, onClose, onSuccess, telegramId }) {
               ))}
             </div>
 
+            {hasDiscount && (
+              <div className="confirm-discount-row">
+                <span>Скидка 10% за 3+ вещи</span>
+                <span>−{discountAmount.toLocaleString('ru-RU')} ₽</span>
+              </div>
+            )}
+
             <div className="confirm-total">
               <span>Итого</span>
-              <span>{cart.reduce((s, i) => s + i.price, 0).toLocaleString('ru-RU')} ₽</span>
+              <span>{total.toLocaleString('ru-RU')} ₽</span>
             </div>
 
             <div className="confirm-notice">
@@ -89,6 +98,7 @@ export default function BookingModal({ cart, onClose, onSuccess, telegramId }) {
   }
 
   // ── ФОРМА ЗАЯВКИ ──
+  const formDiscount = calcCartTotals(cart)
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
@@ -100,6 +110,12 @@ export default function BookingModal({ cart, onClose, onSuccess, telegramId }) {
         <div className="modal-arts">
           <span>Вещи:</span> <span className="arts-list">{arts}</span>
         </div>
+
+        {formDiscount.hasDiscount && (
+          <div className="booking-discount-notice">
+            🎉 Скидка 10% применена — итого {formDiscount.total.toLocaleString('ru-RU')} ₽ вместо {formDiscount.subtotal.toLocaleString('ru-RU')} ₽
+          </div>
+        )}
 
         <div className="booking-notice">
           ⏱ Вещи бронируются на 1 час перед личной встречей, либо на срок по индивидуальной договорённости с продавцом.

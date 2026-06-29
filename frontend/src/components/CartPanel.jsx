@@ -1,8 +1,10 @@
 import { getPhotoUrl } from '../api.js'
+import { calcCartTotals, BULK_DISCOUNT_MIN_ITEMS, BULK_DISCOUNT_PERCENT } from '../cartDiscount.js'
 import './CartPanel.css'
 
 export default function CartPanel({ cart, onRemove, onBack, onCheckout }) {
-  const total = cart.reduce((s, i) => s + i.price, 0)
+  const { subtotal, hasDiscount, discountAmount, total } = calcCartTotals(cart)
+  const itemsToDiscount = Math.max(BULK_DISCOUNT_MIN_ITEMS - cart.length, 0)
 
   return (
     <div className="cart-panel">
@@ -46,7 +48,30 @@ export default function CartPanel({ cart, onRemove, onBack, onCheckout }) {
             })}
           </div>
 
+          {!hasDiscount && itemsToDiscount > 0 && (
+            <div className="discount-notice">
+              🎁 Добавьте ещё {itemsToDiscount} {itemsToDiscount === 1 ? 'вещь' : 'вещи'} — и получите скидку {BULK_DISCOUNT_PERCENT}% на весь заказ
+            </div>
+          )}
+          {hasDiscount && (
+            <div className="discount-notice active">
+              🎉 Скидка {BULK_DISCOUNT_PERCENT}% за {cart.length}+ вещи применена
+            </div>
+          )}
+
           <div className="cart-footer">
+            {hasDiscount && (
+              <>
+                <div className="cart-subtotal">
+                  <span>Сумма</span>
+                  <span>{subtotal.toLocaleString('ru-RU')} ₽</span>
+                </div>
+                <div className="cart-discount-row">
+                  <span>Скидка {BULK_DISCOUNT_PERCENT}%</span>
+                  <span>−{discountAmount.toLocaleString('ru-RU')} ₽</span>
+                </div>
+              </>
+            )}
             <div className="cart-total">
               <span>Итого</span>
               <span>{total.toLocaleString('ru-RU')} ₽</span>

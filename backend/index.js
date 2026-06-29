@@ -118,6 +118,10 @@ async function sendOrderEmail(order) {
         </thead>
         <tbody>${itemsHtml}</tbody>
       </table>
+      ${order.hasDiscount ? `
+      <p style="font-size:14px;color:#666;margin-top:12px">Сумма: ${order.subtotal.toLocaleString('ru-RU')} ₽</p>
+      <p style="font-size:14px;color:#3B6D11;margin-top:4px">Скидка 10% за 3+ вещи: −${order.discountAmount.toLocaleString('ru-RU')} ₽</p>
+      ` : ''}
       <p style="font-size:18px;margin-top:16px"><b>Итого: ${order.total.toLocaleString('ru-RU')} ₽</b></p>
       <hr style="margin:24px 0;border:none;border-top:1px solid #eee">
       <p style="color:#999;font-size:12px">Заявка получена ${new Date().toLocaleString('ru-RU')}</p>
@@ -145,6 +149,10 @@ async function sendTelegramNotification(order) {
     `📞 ${order.phone}\n` +
     (order.comment ? `💬 ${order.comment}\n` : '') +
     `\n${itemsText}\n\n` +
+    (order.hasDiscount
+      ? `Сумма: ${order.subtotal.toLocaleString('ru-RU')} ₽\n🎁 Скидка 10%: −${order.discountAmount.toLocaleString('ru-RU')} ₽\n`
+      : ''
+    ) +
     `💰 Итого: *${order.total.toLocaleString('ru-RU')} ₽*\n` +
     `⏱ Бронь действует 1 час`;
 
@@ -449,7 +457,12 @@ app.post('/api/orders', async (req, res) => {
       return res.status(400).json({ error: 'Товары не найдены' });
     }
 
-    const total = items.reduce((sum, i) => sum + i.price, 0);
+    const subtotal = items.reduce((sum, i) => sum + i.price, 0);
+    const BULK_DISCOUNT_MIN_ITEMS = 3;
+    const BULK_DISCOUNT_PERCENT = 10;
+    const hasDiscount = items.length >= BULK_DISCOUNT_MIN_ITEMS;
+    const discountAmount = hasDiscount ? Math.round(subtotal * (BULK_DISCOUNT_PERCENT / 100)) : 0;
+    const total = subtotal - discountAmount;
     const orderNumber = await nextOrderNumber();
 
     const { rows } = await pool.query(
@@ -471,13 +484,13 @@ app.post('/api/orders', async (req, res) => {
     );
 
     try {
-      await sendOrderEmail({ orderNumber, buyer_name, phone, comment, items, total });
+      await sendOrderEmail({ orderNumber, buyer_name, phone, comment, items, total, subtotal, discountAmount, hasDiscount });
     } catch (mailErr) {
       console.error('Ошибка отправки email:', mailErr.message);
     }
 
     try {
-      await sendTelegramNotification({ orderNumber, buyer_name, phone, comment, items, total });
+      await sendTelegramNotification({ orderNumber, buyer_name, phone, comment, items, total, subtotal, discountAmount, hasDiscount });
     } catch (tgErr) {
       console.error('Ошибка отправки в Telegram:', tgErr.message);
     }
