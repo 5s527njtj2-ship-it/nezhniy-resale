@@ -25,8 +25,11 @@ export function ownerFetch(path, options = {}, password) {
   })
 }
 
-export function getPhotoUrl(filename) {
-  if (!filename) return null
+export function getPhotoUrl(photo) {
+  if (!photo) return null
+  // photo уже содержит полный URL из Supabase Storage — возвращаем как есть
+  if (photo.startsWith('http://') || photo.startsWith('https://')) return photo
+  // обратная совместимость со старой схемой локальных файлов (если где-то осталась)
   const base = import.meta.env.VITE_API_URL?.replace('/api', '') || ''
-  return `${base}/uploads/${filename}`
+  return `${base}/uploads/${photo}`
 }

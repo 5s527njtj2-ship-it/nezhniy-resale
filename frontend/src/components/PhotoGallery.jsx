@@ -5,10 +5,12 @@ export default function PhotoGallery({ photos, onClose }) {
   const [index, setIndex] = useState(0)
   const [touchStartX, setTouchStartX] = useState(null)
 
-  function prev() {
+  function prev(e) {
+    e?.stopPropagation()
     setIndex(i => (i === 0 ? photos.length - 1 : i - 1))
   }
-  function next() {
+  function next(e) {
+    e?.stopPropagation()
     setIndex(i => (i === photos.length - 1 ? 0 : i + 1))
   }
 
@@ -23,10 +25,13 @@ export default function PhotoGallery({ photos, onClose }) {
     setTouchStartX(null)
   }
 
+  function handleClose(e) {
+    e.stopPropagation()
+    onClose()
+  }
+
   return (
     <div className="gallery-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <button className="gallery-close" onClick={onClose}>✕</button>
-
       <div
         className="gallery-stage"
         onTouchStart={handleTouchStart}
@@ -42,10 +47,12 @@ export default function PhotoGallery({ photos, onClose }) {
         )}
       </div>
 
+      <button className="gallery-close" onClick={handleClose} onTouchEnd={handleClose}>✕</button>
+
       {photos.length > 1 && (
         <div className="gallery-dots">
           {photos.map((_, i) => (
-            <span key={i} className={`gallery-dot ${i === index ? 'active' : ''}`} onClick={() => setIndex(i)} />
+            <span key={i} className={`gallery-dot ${i === index ? 'active' : ''}`} onClick={e => { e.stopPropagation(); setIndex(i) }} />
           ))}
         </div>
       )}

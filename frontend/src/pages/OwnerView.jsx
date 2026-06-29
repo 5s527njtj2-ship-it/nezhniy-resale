@@ -428,6 +428,9 @@ export default function OwnerView() {
                 <div key={order.id} className="order-card">
                   <div className="order-top">
                     <div>
+                      <div className="order-number-badge">
+                        {order.order_number ? `№${String(order.order_number).padStart(4, '0')}` : ''}
+                      </div>
                       <div className="order-name">{order.buyer_name}</div>
                       <a href={`tel:${order.phone}`} className="order-phone">📞 {order.phone}</a>
                     </div>

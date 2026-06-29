@@ -57,6 +57,13 @@ async function nextArt() {
   return `NR-${String(value).padStart(4, '0')}`;
 }
 
+async function nextOrderNumber() {
+  const { rows } = await pool.query(
+    `UPDATE counters SET value = value + 1 WHERE key = 'order_counter' RETURNING value`
+  );
+  return rows[0].value;
+}
+
 function requireOwner(req, res, next) {
   const pwd = req.headers['x-owner-password'];
   if (pwd !== process.env.OWNER_PASSWORD) {
@@ -97,7 +104,7 @@ async function sendOrderEmail(order) {
 
   const html = `
     <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
-      <h2 style="color:#D85A30">Нежный Ресейл — новая заявка</h2>
+      <h2 style="color:#D85A30">Нежный Ресейл — заявка №${String(order.orderNumber).padStart(4, '0')}</h2>
       <p><b>Покупатель:</b> ${order.buyer_name}</p>
       <p><b>Телефон:</b> <a href="tel:${order.phone}">${order.phone}</a></p>
       ${order.comment ? `<p><b>Комментарий:</b> ${order.comment}</p>` : ''}
@@ -133,7 +140,7 @@ async function sendTelegramNotification(order) {
     .join('\n');
 
   const text =
-    `🛍 *Новая заявка*\n\n` +
+    `🛍 *Новая заявка №${String(order.orderNumber).padStart(4, '0')}*\n\n` +
     `👤 ${order.buyer_name}\n` +
     `📞 ${order.phone}\n` +
     (order.comment ? `💬 ${order.comment}\n` : '') +
@@ -246,9 +253,10 @@ app.post('/api/items', requireOwner, upload.array('photos', 6), async (req, res)
 
     let photoUrls = [];
     if (req.files && req.files.length) {
-      photoUrls = await Promise.all(
-        req.files.map(file => uploadPhotoToStorage(file.buffer, `${uuidv4()}.webp`))
-      );
+      for (const file of req.files) {
+        const url = await uploadPhotoToStorage(file.buffer, `${uuidv4()}.webp`);
+        photoUrls.push(url);
+      }
     }
 
     const oldPriceValue = old_price && parseInt(old_price) > parseInt(price) ? parseInt(old_price) : null;
@@ -316,10 +324,10 @@ app.put('/api/items/:id', requireOwner, upload.array('photos', 6), async (req, r
     }
 
     if (req.files && req.files.length) {
-      const newUrls = await Promise.all(
-        req.files.map(file => uploadPhotoToStorage(file.buffer, `${uuidv4()}.webp`))
-      );
-      photoUrls.push(...newUrls);
+      for (const file of req.files) {
+        const url = await uploadPhotoToStorage(file.buffer, `${uuidv4()}.webp`);
+        photoUrls.push(url);
+      }
     }
 
     const { rows: updated } = await pool.query(
@@ -388,13 +396,14 @@ app.post('/api/orders', async (req, res) => {
     }
 
     const total = items.reduce((sum, i) => sum + i.price, 0);
+    const orderNumber = await nextOrderNumber();
 
     const { rows } = await pool.query(
-      `INSERT INTO orders (buyer_name, phone, comment, arts, total, items_json)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO orders (order_number, buyer_name, phone, comment, arts, total, items_json)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
-        buyer_name, phone, comment || '',
+        orderNumber, buyer_name, phone, comment || '',
         arts.join(', '), total,
         JSON.stringify(items.map(i => ({ art: i.art, name: i.name, price: i.price })))
       ]
@@ -407,13 +416,13 @@ app.post('/api/orders', async (req, res) => {
     );
 
     try {
-      await sendOrderEmail({ buyer_name, phone, comment, items, total });
+      await sendOrderEmail({ orderNumber, buyer_name, phone, comment, items, total });
     } catch (mailErr) {
       console.error('Ошибка отправки email:', mailErr.message);
     }
 
     try {
-      await sendTelegramNotification({ buyer_name, phone, comment, items, total });
+      await sendTelegramNotification({ orderNumber, buyer_name, phone, comment, items, total });
     } catch (tgErr) {
       console.error('Ошибка отправки в Telegram:', tgErr.message);
     }
@@ -498,8 +507,9 @@ app.get('/api/export/catalog', requireOwner, async (req, res) => {
 app.get('/api/export/orders', requireOwner, async (req, res) => {
   try {
     const { rows: orders } = await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
-    const csvRows = [['Дата','Имя','Телефон','Артикулы','Сумма','Комментарий']];
+    const csvRows = [['№ заявки','Дата','Имя','Телефон','Артикулы','Сумма','Комментарий']];
     orders.forEach(o => csvRows.push([
+      o.order_number ? `№${String(o.order_number).padStart(4, '0')}` : '',
       o.created_at, o.buyer_name, o.phone, o.arts, o.total, o.comment || ''
     ]));
     const csv = '\uFEFF' + csvRows.map(r =>

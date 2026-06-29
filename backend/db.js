@@ -43,21 +43,27 @@ async function initDb() {
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS orders (
-      id          SERIAL PRIMARY KEY,
-      buyer_name  TEXT    NOT NULL,
-      phone       TEXT    NOT NULL,
-      comment     TEXT,
-      arts        TEXT    NOT NULL,
-      total       INTEGER NOT NULL,
-      items_json  TEXT    NOT NULL,
-      viewed      BOOLEAN NOT NULL DEFAULT FALSE,
-      created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+      id           SERIAL PRIMARY KEY,
+      order_number INTEGER,
+      buyer_name   TEXT    NOT NULL,
+      phone        TEXT    NOT NULL,
+      comment      TEXT,
+      arts         TEXT    NOT NULL,
+      total        INTEGER NOT NULL,
+      items_json   TEXT    NOT NULL,
+      viewed       BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at   TIMESTAMP NOT NULL DEFAULT NOW()
     );
   `);
 
   // Миграция: добавляем колонку viewed, если таблица уже существовала без неё
   await pool.query(`
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS viewed BOOLEAN NOT NULL DEFAULT FALSE;
+  `);
+
+  // Миграция: добавляем колонку order_number, если таблица уже существовала без неё
+  await pool.query(`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_number INTEGER;
   `);
 
   await pool.query(`
@@ -70,6 +76,27 @@ async function initDb() {
   await pool.query(`
     INSERT INTO counters (key, value) VALUES ('art_counter', 0)
     ON CONFLICT (key) DO NOTHING;
+  `);
+
+  await pool.query(`
+    INSERT INTO counters (key, value) VALUES ('order_counter', 0)
+    ON CONFLICT (key) DO NOTHING;
+  `);
+
+  // Для уже существующих заявок без номера — проставляем номера по порядку создания
+  await pool.query(`
+    UPDATE orders SET order_number = sub.rownum
+    FROM (
+      SELECT id, ROW_NUMBER() OVER (ORDER BY created_at ASC) as rownum
+      FROM orders WHERE order_number IS NULL
+    ) sub
+    WHERE orders.id = sub.id;
+  `);
+
+  // Синхронизируем счётчик заявок с максимальным уже использованным номером
+  await pool.query(`
+    UPDATE counters SET value = (SELECT COALESCE(MAX(order_number), 0) FROM orders)
+    WHERE key = 'order_counter' AND value < (SELECT COALESCE(MAX(order_number), 0) FROM orders);
   `);
 
   console.log('✅ База данных готова');

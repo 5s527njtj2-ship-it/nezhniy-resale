@@ -8,6 +8,7 @@ export default function BookingModal({ cart, onClose, onSuccess }) {
   const [comment, setComment] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [confirmedOrder, setConfirmedOrder] = useState(null)
 
   async function handleSubmit() {
     if (!name.trim() || !phone.trim()) {
@@ -17,7 +18,7 @@ export default function BookingModal({ cart, onClose, onSuccess }) {
     setLoading(true)
     setError('')
     try {
-      await apiFetch('/orders', {
+      const order = await apiFetch('/orders', {
         method: 'POST',
         body: JSON.stringify({
           buyer_name: name.trim(),
@@ -26,7 +27,7 @@ export default function BookingModal({ cart, onClose, onSuccess }) {
           arts: cart.map(i => i.art),
         }),
       })
-      onSuccess()
+      setConfirmedOrder(order)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -34,8 +35,59 @@ export default function BookingModal({ cart, onClose, onSuccess }) {
     }
   }
 
+  function handleDone() {
+    onSuccess()
+  }
+
   const arts = cart.map(i => i.art).join(', ')
 
+  // ── ЭКРАН ПОДТВЕРЖДЕНИЯ ПОСЛЕ ОТПРАВКИ ──
+  if (confirmedOrder) {
+    const numberLabel = confirmedOrder.order_number
+      ? `№${String(confirmedOrder.order_number).padStart(4, '0')}`
+      : ''
+    return (
+      <div className="modal-overlay" onClick={e => e.target === e.currentTarget && handleDone()}>
+        <div className="modal">
+          <div className="modal-header">
+            <h3>Заявка отправлена</h3>
+            <button className="modal-close" onClick={handleDone}>✕</button>
+          </div>
+
+          <div className="confirm-body">
+            <div className="confirm-icon">✅</div>
+            <div className="confirm-number">Заявка {numberLabel}</div>
+            <div className="confirm-sub">Магазин свяжется с вами в ближайшее время</div>
+
+            <div className="confirm-items">
+              {cart.map(item => (
+                <div className="confirm-item-row" key={item.id}>
+                  <span className="confirm-item-art">{item.art}</span>
+                  <span className="confirm-item-name">{item.name}</span>
+                  <span className="confirm-item-price">{item.price.toLocaleString('ru-RU')} ₽</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="confirm-total">
+              <span>Итого</span>
+              <span>{cart.reduce((s, i) => s + i.price, 0).toLocaleString('ru-RU')} ₽</span>
+            </div>
+
+            <div className="confirm-notice">
+              Сохраните номер заявки {numberLabel} — он понадобится при обращении в магазин
+            </div>
+          </div>
+
+          <div className="modal-footer">
+            <button className="btn-submit" onClick={handleDone} style={{ flex: 1 }}>Готово</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── ФОРМА ЗАЯВКИ ──
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
