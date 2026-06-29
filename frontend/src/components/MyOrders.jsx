@@ -1,14 +1,7 @@
 import { useState, useEffect } from 'react'
 import { apiFetch } from '../api.js'
+import { STATUS_COLORS } from '../orderStatus.js'
 import './MyOrders.css'
-
-const STATUS_COLORS = {
-  'Новая':            { bg: '#F5F5F5', color: '#111111' },
-  'В обработке':      { bg: '#FAEEDA', color: '#854F0B' },
-  'Готово к выдаче':  { bg: '#EAF3DE', color: '#3B6D11' },
-  'Завершена':        { bg: '#111111', color: '#FFFFFF' },
-  'Отменена':         { bg: '#FBEAF0', color: '#993556' },
-}
 
 const CANCELABLE_STATUSES = ['Новая', 'В обработке', 'Готово к выдаче']
 
@@ -105,7 +98,7 @@ export default function MyOrders({ telegramId }) {
               <span className="my-order-number">
                 №{String(order.order_number).padStart(4, '0')}
               </span>
-              <span className="my-order-status" style={{ background: statusStyle.bg, color: statusStyle.color }}>
+              <span className="my-order-status" style={{ background: statusStyle.bg, color: statusStyle.color, borderColor: statusStyle.border }}>
                 {order.status}
               </span>
             </div>

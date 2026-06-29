@@ -3,6 +3,7 @@ import { ownerFetch, apiFetch, getPhotoUrl } from '../api.js'
 import { CATEGORIES, CATEGORIES_MAP, CONDITIONS, COND_COLORS, getSizesForCategory } from '../constants.js'
 import EditItemModal from '../components/EditItemModal.jsx'
 import SalesStats from '../components/SalesStats.jsx'
+import StatusDropdown from '../components/StatusDropdown.jsx'
 import './OwnerView.css'
 
 export default function OwnerView() {
@@ -519,17 +520,10 @@ export default function OwnerView() {
                   <div className="order-arts">Артикулы: <span>{order.arts}</span></div>
                   <div className="order-total">{order.total.toLocaleString('ru-RU')} ₽</div>
                   {order.comment && <div className="order-comment">💬 {order.comment}</div>}
-                  <select
-                    className="order-status-select"
+                  <StatusDropdown
                     value={order.status || 'Новая'}
-                    onChange={e => handleUpdateStatus(order.id, e.target.value)}
-                  >
-                    <option>Новая</option>
-                    <option>В обработке</option>
-                    <option>Готово к выдаче</option>
-                    <option>Завершена</option>
-                    <option>Отменена</option>
-                  </select>
+                    onChange={newStatus => handleUpdateStatus(order.id, newStatus)}
+                  />
                 </div>
               ))}
             </div>
