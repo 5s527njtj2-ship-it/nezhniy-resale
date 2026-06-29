@@ -1,0 +1,94 @@
+.my-orders-loading,
+.my-orders-empty {
+  text-align: center;
+  padding: 60px 24px;
+  color: var(--text-hint);
+}
+.my-orders-empty p {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+  margin-top: 14px;
+  line-height: 1.6;
+}
+.my-orders-empty .empty-emoji {
+  font-size: 36px;
+  opacity: 0.4;
+}
+
+.my-orders-list {
+  padding: 16px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.my-order-card {
+  border: 1px solid var(--border);
+  padding: 16px;
+}
+
+.my-order-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.my-order-number {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Courier New', monospace;
+}
+.my-order-status {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 9px;
+  border-radius: 4px;
+}
+
+.my-order-date {
+  font-size: 11px;
+  color: var(--text-hint);
+  margin-bottom: 12px;
+}
+
+.my-order-items {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-bottom: 10px;
+}
+.my-order-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.my-order-item-art {
+  font-family: 'SF Mono', 'Courier New', monospace;
+  font-size: 10px;
+  color: var(--text-hint);
+  flex-shrink: 0;
+}
+.my-order-item-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.my-order-item-price {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.my-order-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 700;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}

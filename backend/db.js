@@ -52,6 +52,8 @@ async function initDb() {
       total        INTEGER NOT NULL,
       items_json   TEXT    NOT NULL,
       viewed       BOOLEAN NOT NULL DEFAULT FALSE,
+      telegram_id  TEXT,
+      status       TEXT    NOT NULL DEFAULT 'Новая',
       created_at   TIMESTAMP NOT NULL DEFAULT NOW()
     );
   `);
@@ -65,6 +67,10 @@ async function initDb() {
   await pool.query(`
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_number INTEGER;
   `);
+
+  // Миграции: telegram_id для привязки заявки к покупателю, status для отображения хода заявки
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS telegram_id TEXT;`);
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'Новая';`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS counters (

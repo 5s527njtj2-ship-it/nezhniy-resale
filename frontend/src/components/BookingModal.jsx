@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { apiFetch } from '../api.js'
 import './BookingModal.css'
 
-export default function BookingModal({ cart, onClose, onSuccess }) {
+export default function BookingModal({ cart, onClose, onSuccess, telegramId }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [comment, setComment] = useState('')
@@ -25,6 +25,7 @@ export default function BookingModal({ cart, onClose, onSuccess }) {
           phone: phone.trim(),
           comment: comment.trim(),
           arts: cart.map(i => i.art),
+          telegram_id: telegramId,
         }),
       })
       setConfirmedOrder(order)

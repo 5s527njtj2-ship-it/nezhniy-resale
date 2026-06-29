@@ -167,6 +167,18 @@ export default function OwnerView() {
     }
   }
 
+  async function handleUpdateStatus(id, status) {
+    try {
+      const updated = await ownerFetch(`/orders/${id}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status }),
+      }, password)
+      setOrders(prev => prev.map(o => o.id === id ? updated : o))
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
   async function handleOpenOrdersTab() {
     setTab('orders')
     setNewOrdersNotice(0)
@@ -442,6 +454,17 @@ export default function OwnerView() {
                   <div className="order-arts">Артикулы: <span>{order.arts}</span></div>
                   <div className="order-total">{order.total.toLocaleString('ru-RU')} ₽</div>
                   {order.comment && <div className="order-comment">💬 {order.comment}</div>}
+                  <select
+                    className="order-status-select"
+                    value={order.status || 'Новая'}
+                    onChange={e => handleUpdateStatus(order.id, e.target.value)}
+                  >
+                    <option>Новая</option>
+                    <option>В обработке</option>
+                    <option>Готово к выдаче</option>
+                    <option>Завершена</option>
+                    <option>Отменена</option>
+                  </select>
                 </div>
               ))}
             </div>

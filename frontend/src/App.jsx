@@ -13,8 +13,9 @@ export default function App() {
   const [favorites, setFavorites] = useState([])
   const [showAbout, setShowAbout] = useState(false)
   const [consentGiven, setConsentGiven] = useState(true) // по умолчанию true, проверим в useEffect
+  const [telegramId, setTelegramId] = useState(null)
 
-  // Применяем тему Telegram
+  // Применяем тему Telegram и считываем id пользователя
   useEffect(() => {
     const tg = window.Telegram?.WebApp
     if (tg) {
@@ -23,6 +24,8 @@ export default function App() {
       if (tg.colorScheme === 'dark') {
         document.body.classList.add('dark')
       }
+      const userId = tg.initDataUnsafe?.user?.id
+      if (userId) setTelegramId(String(userId))
     }
   }, [])
 
@@ -123,6 +126,7 @@ export default function App() {
             favorites={favorites}
             onToggleFavorite={toggleFavorite}
             onRefreshFavorites={refreshFavorites}
+            telegramId={telegramId}
           />
         ) : (
           <OwnerView />

@@ -380,7 +380,7 @@ app.post('/api/items/:id/unsold', requireOwner, async (req, res) => {
 // Создать заявку (публично)
 app.post('/api/orders', async (req, res) => {
   try {
-    const { buyer_name, phone, comment, arts } = req.body;
+    const { buyer_name, phone, comment, arts, telegram_id } = req.body;
 
     if (!buyer_name || !phone || !arts || !arts.length) {
       return res.status(400).json({ error: 'Укажите имя, телефон и товары' });
@@ -399,13 +399,14 @@ app.post('/api/orders', async (req, res) => {
     const orderNumber = await nextOrderNumber();
 
     const { rows } = await pool.query(
-      `INSERT INTO orders (order_number, buyer_name, phone, comment, arts, total, items_json)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO orders (order_number, buyer_name, phone, comment, arts, total, items_json, telegram_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         orderNumber, buyer_name, phone, comment || '',
         arts.join(', '), total,
-        JSON.stringify(items.map(i => ({ art: i.art, name: i.name, price: i.price })))
+        JSON.stringify(items.map(i => ({ art: i.art, name: i.name, price: i.price }))),
+        telegram_id || null
       ]
     );
 
@@ -431,6 +432,23 @@ app.post('/api/orders', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при создании заявки' });
+  }
+});
+
+// Получить заявки конкретного покупателя по telegram_id (публично — только свои заявки)
+app.get('/api/orders/my', async (req, res) => {
+  try {
+    const { telegram_id } = req.query;
+    if (!telegram_id) return res.json([]);
+    const { rows } = await pool.query(
+      'SELECT * FROM orders WHERE telegram_id = $1 ORDER BY created_at DESC',
+      [telegram_id]
+    );
+    const parsed = rows.map(o => ({ ...o, items: JSON.parse(o.items_json) }));
+    res.json(parsed);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при загрузке заявок' });
   }
 });
 
@@ -468,6 +486,26 @@ app.post('/api/orders/mark-viewed', requireOwner, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка при обновлении заявок' });
+  }
+});
+
+// Изменить статус заявки (только владелец)
+app.post('/api/orders/:id/status', requireOwner, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['Новая', 'В обработке', 'Готово к выдаче', 'Завершена', 'Отменена'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ error: 'Недопустимый статус' });
+    }
+    const { rows } = await pool.query(
+      'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
+      [status, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Заявка не найдена' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при обновлении статуса' });
   }
 });
 

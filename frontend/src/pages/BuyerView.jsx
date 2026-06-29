@@ -5,6 +5,7 @@ import ItemCard from '../components/ItemCard.jsx'
 import CartPanel from '../components/CartPanel.jsx'
 import BookingModal from '../components/BookingModal.jsx'
 import FilterPanel from '../components/FilterPanel.jsx'
+import MyOrders from '../components/MyOrders.jsx'
 import './BuyerView.css'
 
 const SORT_OPTIONS = [
@@ -13,7 +14,7 @@ const SORT_OPTIONS = [
   { id: 'price_desc', label: 'Дороже' },
 ]
 
-export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClearCart, favorites, onToggleFavorite, onRefreshFavorites }) {
+export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClearCart, favorites, onToggleFavorite, onRefreshFavorites, telegramId }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [section, setSection] = useState('women')
@@ -198,6 +199,9 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
                 ❤️
                 {favorites.length > 0 && <span className="cart-badge">{favorites.length}</span>}
               </button>
+              <button className="cart-btn" onClick={() => setView('orders')}>
+                📋
+              </button>
               <button className="cart-btn" onClick={() => setView('cart')}>
                 🛒
                 {cart.length > 0 && <span className="cart-badge">{cart.length}</span>}
@@ -262,6 +266,16 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
         </div>
       )}
 
+      {view === 'orders' && (
+        <div className="favorites-view">
+          <div className="cart-header">
+            <button className="back-btn" onClick={() => setView('catalog')}>← Назад</button>
+            <h2>Мои заявки</h2>
+          </div>
+          <MyOrders telegramId={telegramId} />
+        </div>
+      )}
+
       {view === 'cart' && (
         <CartPanel
           cart={cart}
@@ -276,6 +290,7 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
           cart={cart}
           onClose={() => setShowBooking(false)}
           onSuccess={handleBookingSuccess}
+          telegramId={telegramId}
         />
       )}
 
