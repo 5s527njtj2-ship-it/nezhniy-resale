@@ -13,7 +13,7 @@ const SORT_OPTIONS = [
   { id: 'price_desc', label: 'Дороже' },
 ]
 
-export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClearCart, favorites, onToggleFavorite }) {
+export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClearCart, favorites, onToggleFavorite, onRefreshFavorites }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [section, setSection] = useState('women')
@@ -89,6 +89,10 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
   }
 
   function handleAdd(item) {
+    if (item.sold) {
+      showToast('Этот товар уже продан')
+      return
+    }
     if (cart.find(i => i.id === item.id)) {
       showToast('Уже в корзине')
       return
@@ -190,7 +194,7 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
                 ⚙ Фильтры
                 {hasActiveFilters && <span className="cart-badge">•</span>}
               </button>
-              <button className="cart-btn" onClick={() => setView('favorites')}>
+              <button className="cart-btn" onClick={() => { setView('favorites'); onRefreshFavorites() }}>
                 ❤️
                 {favorites.length > 0 && <span className="cart-badge">{favorites.length}</span>}
               </button>

@@ -66,6 +66,23 @@ export default function App() {
     })
   }
 
+  async function refreshFavorites() {
+    if (favorites.length === 0) return
+    try {
+      const base = import.meta.env.VITE_API_URL || '/api'
+      const res = await fetch(`${base}/items/by-ids`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: favorites.map(f => f.id) }),
+      })
+      if (!res.ok) return
+      const updated = await res.json()
+      setFavorites(prev => prev.map(f => updated.find(u => u.id === f.id) || f))
+    } catch {
+      // тихо игнорируем — избранное останется со старыми данными
+    }
+  }
+
   if (!consentGiven) {
     return <PrivacyConsent onAccept={handleAcceptConsent} />
   }
@@ -105,6 +122,7 @@ export default function App() {
             onClearCart={clearCart}
             favorites={favorites}
             onToggleFavorite={toggleFavorite}
+            onRefreshFavorites={refreshFavorites}
           />
         ) : (
           <OwnerView />

@@ -38,15 +38,16 @@ export default function ItemCard({ item, inCart, onAdd, onRemove, isFavorite, on
 
   return (
     <div className="item-card">
-      <div className="item-photo" onClick={handlePhotoClick}>
+      <div className={`item-photo ${item.sold ? 'sold-overlay' : ''}`} onClick={handlePhotoClick}>
         {photoUrl
           ? <img src={photoUrl} alt={item.name} loading="lazy" />
           : <div className="item-photo-placeholder">{cat?.emoji || '👗'}</div>
         }
         <div className="item-tags">
-          {hasDiscount && <span className="discount-tag">−{discountPercent}%</span>}
-          {!hasDiscount && isNew && <span className="new-tag">Новое</span>}
-          {isReserved && <span className="reserved-tag">Забронировано</span>}
+          {item.sold && <span className="sold-tag">Продано</span>}
+          {!item.sold && hasDiscount && <span className="discount-tag">−{discountPercent}%</span>}
+          {!item.sold && !hasDiscount && isNew && <span className="new-tag">Новое</span>}
+          {!item.sold && isReserved && <span className="reserved-tag">Забронировано</span>}
         </div>
         {photoCount > 1 && <span className="photo-count-tag">📷 {photoCount}</span>}
 
@@ -66,15 +67,17 @@ export default function ItemCard({ item, inCart, onAdd, onRemove, isFavorite, on
           ↗
         </button>
 
-        <button
-          className={`add-btn ${inCart ? 'in-cart' : ''}`}
-          onClick={e => { e.stopPropagation(); inCart ? onRemove() : onAdd() }}
-          aria-label={inCart ? 'Убрать из корзины' : 'Добавить в корзину'}
-        >
-          {inCart ? '✓' : '+'}
-        </button>
+        {!item.sold && (
+          <button
+            className={`add-btn ${inCart ? 'in-cart' : ''}`}
+            onClick={e => { e.stopPropagation(); inCart ? onRemove() : onAdd() }}
+            aria-label={inCart ? 'Убрать из корзины' : 'Добавить в корзину'}
+          >
+            {inCart ? '✓' : '+'}
+          </button>
+        )}
       </div>
-      <div className="item-body">
+      <div className={`item-body ${item.sold ? 'sold' : ''}`}>
         <div className="item-name">{item.name}</div>
         <div className="item-price-row">
           <span className="item-price">{item.price.toLocaleString('ru-RU')} ₽</span>

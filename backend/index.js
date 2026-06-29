@@ -29,7 +29,7 @@ app.use(cors({
     process.env.FRONTEND_URL,
     'http://localhost:5173', // для разработки
   ],
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-owner-password'],
 }));
 
@@ -222,6 +222,19 @@ app.post('/api/items/:id/view', async (req, res) => {
   }
 });
 
+// Получить актуальные данные по списку id товаров (публично, для обновления избранного — включает проданные)
+app.post('/api/items/by-ids', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || !ids.length) return res.json([]);
+    const { rows } = await pool.query('SELECT * FROM items WHERE id = ANY($1)', [ids]);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при загрузке товаров' });
+  }
+});
+
 // Добавить товар (только владелец)
 app.post('/api/items', requireOwner, upload.array('photos', 6), async (req, res) => {
   try {
@@ -233,11 +246,9 @@ app.post('/api/items', requireOwner, upload.array('photos', 6), async (req, res)
 
     let photoUrls = [];
     if (req.files && req.files.length) {
-      for (const file of req.files) {
-        const filename = `${uuidv4()}.webp`;
-        const url = await uploadPhotoToStorage(file.buffer, filename);
-        photoUrls.push(url);
-      }
+      photoUrls = await Promise.all(
+        req.files.map(file => uploadPhotoToStorage(file.buffer, `${uuidv4()}.webp`))
+      );
     }
 
     const oldPriceValue = old_price && parseInt(old_price) > parseInt(price) ? parseInt(old_price) : null;
@@ -305,11 +316,10 @@ app.put('/api/items/:id', requireOwner, upload.array('photos', 6), async (req, r
     }
 
     if (req.files && req.files.length) {
-      for (const file of req.files) {
-        const filename = `${uuidv4()}.webp`;
-        const url = await uploadPhotoToStorage(file.buffer, filename);
-        photoUrls.push(url);
-      }
+      const newUrls = await Promise.all(
+        req.files.map(file => uploadPhotoToStorage(file.buffer, `${uuidv4()}.webp`))
+      );
+      photoUrls.push(...newUrls);
     }
 
     const { rows: updated } = await pool.query(

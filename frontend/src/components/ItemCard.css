@@ -203,3 +203,23 @@
   align-items: center;
   justify-content: center;
 }
+
+.sold-tag {
+  background: #6B6B6B;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.item-photo.sold-overlay img {
+  opacity: 0.45;
+  filter: grayscale(40%);
+}
+
+.item-body.sold {
+  opacity: 0.55;
+}
