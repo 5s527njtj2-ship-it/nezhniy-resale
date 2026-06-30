@@ -77,7 +77,7 @@ export default function CartPanel({ cart, onRemove, onBack, onCheckout }) {
               <span>{total.toLocaleString('ru-RU')} ₽</span>
             </div>
             <button className="checkout-btn" onClick={onCheckout}>
-              Связаться с магазином 💬
+              Оформить заказ
             </button>
           </div>
         </>

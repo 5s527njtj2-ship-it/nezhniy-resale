@@ -103,7 +103,7 @@ export default function BookingModal({ cart, onClose, onSuccess, telegramId }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h3>Связаться с магазином</h3>
+          <h3>Оформить заказ</h3>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 

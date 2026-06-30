@@ -5,21 +5,22 @@ import './SalesStats.css'
 
 export default function SalesStats({ password }) {
   const [data, setData] = useState(null)
-  const [topViewed, setTopViewed] = useState([])
+  const [allItems, setAllItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [viewsTab, setViewsTab] = useState('active') // 'active' | 'sold'
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
-        const [salesRes, topRes] = await Promise.all([
+        const [salesRes, itemsRes] = await Promise.all([
           ownerFetch('/stats/sales', {}, password),
           ownerFetch('/stats/top-viewed', {}, password),
         ])
         if (!cancelled) {
           setData(salesRes)
-          setTopViewed(topRes)
+          setAllItems(itemsRes)
         }
       } catch (e) {
         if (!cancelled) setError(e.message)
@@ -37,7 +38,11 @@ export default function SalesStats({ password }) {
 
   const maxMonthSum = Math.max(1, ...data.monthly.map(m => m.sum))
   const maxCatSum = Math.max(1, ...data.byCategory.map(c => c.sum))
-  const maxViews = Math.max(1, ...topViewed.map(i => i.views_count))
+
+  const activeItems = allItems.filter(i => !i.sold)
+  const soldItems = allItems.filter(i => i.sold)
+  const displayedItems = viewsTab === 'active' ? activeItems : soldItems
+  const maxViews = Math.max(1, ...displayedItems.map(i => i.views_count))
 
   function formatMonth(m) {
     const [year, month] = m.split('-')
@@ -62,30 +67,44 @@ export default function SalesStats({ password }) {
         </div>
       </div>
 
-      {topViewed.length > 0 && (
+      {allItems.length > 0 && (
         <div className="sales-section">
-          <div className="sales-section-title">Топ просматриваемых</div>
-          <div className="top-viewed-list">
-            {topViewed.map(item => {
-              const photoUrl = getPhotoUrl(item.photo)
-              const cat = CATEGORIES_MAP[item.category]
-              return (
-                <div className="top-viewed-row" key={item.id}>
-                  <div className="top-viewed-photo">
-                    {photoUrl ? <img src={photoUrl} alt={item.name} /> : <span>{cat?.emoji}</span>}
-                  </div>
-                  <div className="top-viewed-info">
-                    <div className="top-viewed-name">{item.name}</div>
-                    <div className="top-viewed-meta">
-                      <span className="art">{item.art}</span>
-                      {item.sold && <span className="badge-sold">Продано</span>}
+          <div className="sales-section-title">Просмотры товаров</div>
+          <div className="views-toggle">
+            <button className={viewsTab === 'active' ? 'active' : ''} onClick={() => setViewsTab('active')}>
+              В продаже ({activeItems.length})
+            </button>
+            <button className={viewsTab === 'sold' ? 'active' : ''} onClick={() => setViewsTab('sold')}>
+              Продано ({soldItems.length})
+            </button>
+          </div>
+          {displayedItems.length === 0 ? (
+            <div className="stats-empty-small">Нет товаров</div>
+          ) : (
+            <div className="top-viewed-list">
+              {displayedItems.map(item => {
+                const photoUrl = getPhotoUrl(item.photo)
+                const cat = CATEGORIES_MAP[item.category] || CATEGORIES_MAP['w-' + item.category]
+                return (
+                  <div className="top-viewed-row" key={item.id}>
+                    <div className="top-viewed-photo">
+                      {photoUrl ? <img src={photoUrl} alt={item.name} /> : <span>{cat?.emoji || '👗'}</span>}
+                    </div>
+                    <div className="top-viewed-info">
+                      <div className="top-viewed-name">{item.name}</div>
+                      <div className="top-viewed-meta">
+                        <span className="art">{item.art}</span>
+                        <span className="top-viewed-price">{item.price.toLocaleString('ru-RU')} ₽</span>
+                      </div>
+                    </div>
+                    <div className="top-viewed-views">
+                      <span className="views-num">👁 {item.views_count}</span>
                     </div>
                   </div>
-                  <div className="top-viewed-views">👁 {item.views_count}</div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -126,8 +145,8 @@ export default function SalesStats({ password }) {
         </div>
       )}
 
-      {data.totalSold === 0 && topViewed.length === 0 && (
-        <div className="sales-empty">Статистика появится после первых просмотров и продаж</div>
+      {data.totalSold === 0 && allItems.length === 0 && (
+        <div className="sales-empty">Статистика появится после добавления товаров</div>
       )}
     </div>
   )

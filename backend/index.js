@@ -727,9 +727,7 @@ app.get('/api/stats/top-viewed', requireOwner, async (req, res) => {
     const { rows } = await pool.query(`
       SELECT id, art, name, category, price, photo, views_count, sold
       FROM items
-      WHERE views_count > 0
-      ORDER BY views_count DESC
-      LIMIT 10
+      ORDER BY sold ASC, views_count DESC, created_at DESC
     `);
     res.json(rows);
   } catch (err) {
