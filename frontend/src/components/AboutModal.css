@@ -89,3 +89,8 @@
   border-radius: 12px;
   line-height: 1.5;
 }
+
+.about-legal {
+  font-size: 13px;
+  color: var(--text-muted);
+}

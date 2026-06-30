@@ -34,7 +34,7 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
   const subcats = SUBCATEGORIES[section] || []
   const hasActiveFilters = priceRange.min || priceRange.max || sizeFilter
 
-  const SECTION_PREFIX = { women: 'w-', men: 'm-', kids: 'k-', home: 'home' }
+  const SECTION_PREFIX = { women: 'w-', men: 'm-', perf: 'p-', home: 'home' }
 
   const fetchItems = useCallback(async () => {
     try {
@@ -49,7 +49,7 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
       if (sizeFilter) params.set('size', sizeFilter)
       const data = await apiFetch(`/items?${params}`)
       const prefix = SECTION_PREFIX[section]
-      const hasPrefix = i => i.category.startsWith('w-') || i.category.startsWith('m-') || i.category.startsWith('k-') || i.category === 'home'
+      const hasPrefix = i => i.category.startsWith('w-') || i.category.startsWith('m-') || i.category.startsWith('p-') || i.category === 'home'
       let filtered = subcategory === 'all'
         ? data.filter(i => {
             if (prefix === 'home') return i.category === 'home'

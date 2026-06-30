@@ -36,7 +36,7 @@ export default function AboutModal({ onClose }) {
 
           <div className="about-block">
             <div className="about-label">Режим работы</div>
-            <div className="about-value">Пн–Сб: 11:00–21:00<br />Вс: выходной</div>
+            <div className="about-value">Пн–Сб: 11:00–21:00<br />Вс: 12:00–20:00</div>
           </div>
 
           <div className="about-block">
@@ -53,6 +53,14 @@ export default function AboutModal({ onClose }) {
               Ресейл-магазин премиум-класса в Москве. Только 100% оригинал —
               никаких реплик и подделок. Большой выбор брендовой одежды, обуви и аксессуаров.
               Рейтинг 4.8 на Яндекс Картах (167 оценок).
+            </div>
+          </div>
+
+          <div className="about-block">
+            <div className="about-label">Юридическая информация</div>
+            <div className="about-value about-legal">
+              ИП Таннэ Наталья Михайловна<br />
+              ИНН 771871231320
             </div>
           </div>
 

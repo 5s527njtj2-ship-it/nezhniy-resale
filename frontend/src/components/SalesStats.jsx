@@ -111,7 +111,7 @@ export default function SalesStats({ password }) {
           <div className="sales-section-title">По категориям</div>
           <div className="bar-chart">
             {data.byCategory.map(c => {
-              const cat = CATEGORIES_MAP[c.category]
+              const cat = CATEGORIES_MAP[c.category] || CATEGORIES_MAP['w-' + c.category]
               return (
                 <div className="bar-row" key={c.category}>
                   <span className="bar-label">{cat ? `${cat.emoji} ${cat.label}` : c.category}</span>

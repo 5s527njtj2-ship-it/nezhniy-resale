@@ -1,9 +1,9 @@
 // Главные разделы (верхний уровень навигации)
 export const SECTIONS = [
-  { id: 'women', label: 'Женское',  emoji: '👚' },
-  { id: 'men',   label: 'Мужское',  emoji: '👔' },
-  { id: 'kids',  label: 'Детское',  emoji: '🧒' },
-  { id: 'home',  label: 'Интерьер', emoji: '🏠' },
+  { id: 'women', label: 'Женское',     emoji: '👚' },
+  { id: 'men',   label: 'Мужское',     emoji: '👔' },
+  { id: 'perf',  label: 'Парфюмерия',  emoji: '🧴' },
+  { id: 'home',  label: 'Интерьер',    emoji: '🏠' },
 ]
 
 // Подкатегории по разделам — каждый id уникален и однозначно принадлежит своему разделу
@@ -42,11 +42,12 @@ export const SUBCATEGORIES = {
     { id: 'm-acc',     label: 'Аксессуары' },
     { id: 'm-sport',   label: 'Спорт' },
   ],
-  kids: [
+  perf: [
     { id: 'all',       label: 'Всё' },
-    { id: 'k-clothes', label: 'Одежда' },
-    { id: 'k-shoes',   label: 'Обувь' },
-    { id: 'k-acc',     label: 'Аксессуары' },
+    { id: 'p-women',   label: 'Женская' },
+    { id: 'p-men',     label: 'Мужская' },
+    { id: 'p-unisex',  label: 'Унисекс' },
+    { id: 'p-niche',   label: 'Нишевая' },
   ],
   home: [
     { id: 'all',  label: 'Всё' },
@@ -88,9 +89,10 @@ export const CATEGORIES = [
   { id: 'm-acc',      label: 'Мужские аксессуары',   emoji: '✨', section: 'men' },
   { id: 'm-sport',    label: 'Мужской спорт',        emoji: '🏃', section: 'men' },
 
-  { id: 'k-clothes',  label: 'Детская одежда',       emoji: '🧒', section: 'kids' },
-  { id: 'k-shoes',    label: 'Детская обувь',        emoji: '👟', section: 'kids' },
-  { id: 'k-acc',      label: 'Детские аксессуары',   emoji: '🎈', section: 'kids' },
+  { id: 'p-women',    label: 'Парфюмерия: женская',    emoji: '🌸', section: 'perf' },
+  { id: 'p-men',      label: 'Парфюмерия: мужская',    emoji: '🧴', section: 'perf' },
+  { id: 'p-unisex',   label: 'Парфюмерия: унисекс',    emoji: '✨', section: 'perf' },
+  { id: 'p-niche',    label: 'Нишевая парфюмерия',      emoji: '💎', section: 'perf' },
 
   { id: 'home',       label: 'Интерьер',             emoji: '🏠', section: 'home' },
 ]
@@ -148,10 +150,10 @@ export const SIZES = [...new Set([
 
 // Возвращает подходящий список размеров по выбранной категории товара
 export function getSizesForCategory(categoryId) {
+  if (categoryId.startsWith('p-')) return ['One size', '—']
   if (categoryId.includes('shoes')) return SHOE_SIZES
-  if (categoryId.startsWith('k-')) return KIDS_SIZES
-  if (categoryId === 'w-jewelry') return RING_SIZES
   if (categoryId.startsWith('m-') && !['m-belt','m-hat','m-eyewear','m-acc','m-watch'].includes(categoryId)) return MEN_CLOTHING_SIZES
+  if (categoryId === 'w-jewelry') return RING_SIZES
   if (['w-belt','w-hat','w-eyewear','w-acc','w-watch','m-belt','m-hat','m-eyewear','m-acc','m-watch'].includes(categoryId)) return ACCESSORY_SIZES
   return CLOTHING_SIZES
 }
