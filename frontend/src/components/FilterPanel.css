@@ -55,7 +55,7 @@
 .size-chip.active {
   background: var(--black);
   border-color: var(--black);
-  color: #fff;
+  color: var(--white);
 }
 
 .size-selected {

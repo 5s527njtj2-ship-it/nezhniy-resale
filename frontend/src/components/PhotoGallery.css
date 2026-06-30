@@ -176,7 +176,7 @@
   padding: 15px;
   border: none;
   background: var(--black);
-  color: #fff;
+  color: var(--white);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;

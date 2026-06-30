@@ -49,7 +49,7 @@
 .add-btn:active { transform: scale(0.9); }
 .add-btn.in-cart {
   background: var(--black);
-  color: #fff;
+  color: var(--white);
   font-size: 14px;
 }
 

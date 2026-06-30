@@ -103,7 +103,7 @@
 }
 .cart-badge {
   background: var(--black);
-  color: #fff;
+  color: var(--white);
   border-radius: 50%;
   width: 17px;
   height: 17px;
