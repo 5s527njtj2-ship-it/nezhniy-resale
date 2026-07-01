@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { ownerFetch, apiFetch, getPhotoUrl } from '../api.js'
 import { CATEGORIES, CATEGORIES_MAP, CONDITIONS, COND_COLORS, getSizesForCategory } from '../constants.js'
+import { normalizePhoto } from '../photoUtils.js'
 import EditItemModal from '../components/EditItemModal.jsx'
 import SalesStats from '../components/SalesStats.jsx'
 import StatusDropdown from '../components/StatusDropdown.jsx'
@@ -83,7 +84,10 @@ export default function OwnerView() {
     try {
       const fd = new FormData()
       Object.entries(form).forEach(([k, v]) => fd.append(k, v))
-      photoFiles.forEach(f => fd.append('photos', f))
+
+      // Нормализуем все фото перед загрузкой (исправляет поворот EXIF)
+      const normalized = await Promise.all(photoFiles.map(f => normalizePhoto(f)))
+      normalized.forEach(f => fd.append('photos', f))
 
       const res = await fetch(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/items` : '/api/items', {
         method: 'POST',

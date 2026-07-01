@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { CATEGORIES, CONDITIONS, getSizesForCategory } from '../constants.js'
+import { normalizePhoto } from '../photoUtils.js'
 import './EditItemModal.css'
 
 export default function EditItemModal({ item, password, onClose, onSaved }) {
@@ -40,7 +41,8 @@ export default function EditItemModal({ item, password, onClose, onSaved }) {
       const fd = new FormData()
       Object.entries(form).forEach(([k, v]) => fd.append(k, v))
       fd.append('keepPhotos', JSON.stringify(existingPhotos))
-      newFiles.forEach(f => fd.append('photos', f))
+      const normalized = await Promise.all(newFiles.map(f => normalizePhoto(f)))
+      normalized.forEach(f => fd.append('photos', f))
 
       const base = import.meta.env.VITE_API_URL || '/api'
       const res = await fetch(`${base}/items/${item.id}`, {
