@@ -17,12 +17,11 @@ export default function ItemCard({ item, inCart, onAdd, onRemove, isFavorite, on
   function handleShare(e) {
     e.stopPropagation()
     const text = `${item.name} — ${item.price.toLocaleString('ru-RU')} ₽`
-    const botUrl = `https://t.me/Nezhniy_Resale_bot/nezhniy-resale_store?startapp=${item.art}`
     const tg = window.Telegram?.WebApp
     if (tg?.openTelegramLink) {
-      tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(text)}`)
+      tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(text)}`)
     } else if (navigator.share) {
-      navigator.share({ title: item.name, text, url: botUrl }).catch(() => {})
+      navigator.share({ title: item.name, text }).catch(() => {})
     }
   }
 
