@@ -14,17 +14,6 @@ export default function ItemCard({ item, inCart, onAdd, onRemove, isFavorite, on
   const discountPercent = hasDiscount ? Math.round((1 - item.price / item.old_price) * 100) : 0
   const isNew = item.created_at && (Date.now() - new Date(item.created_at).getTime()) < NEW_DAYS_THRESHOLD * 24 * 60 * 60 * 1000
 
-  function handleShare(e) {
-    e.stopPropagation()
-    const text = `${item.name} — ${item.price.toLocaleString('ru-RU')} ₽`
-    const tg = window.Telegram?.WebApp
-    if (tg?.openTelegramLink) {
-      tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(text)}`)
-    } else if (navigator.share) {
-      navigator.share({ title: item.name, text }).catch(() => {})
-    }
-  }
-
   return (
     <div className="item-card" onClick={() => onOpen(item)}>
       <div className={`item-photo ${item.sold ? 'sold-overlay' : ''}`}>
@@ -46,14 +35,6 @@ export default function ItemCard({ item, inCart, onAdd, onRemove, isFavorite, on
           aria-label={isFavorite ? 'Убрать из избранного' : 'В избранное'}
         >
           {isFavorite ? '❤️' : '🤍'}
-        </button>
-
-        <button
-          className="share-btn"
-          onClick={handleShare}
-          aria-label="Поделиться"
-        >
-          ↗
         </button>
 
         {!item.sold && (
