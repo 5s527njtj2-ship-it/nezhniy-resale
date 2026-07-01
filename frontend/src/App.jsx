@@ -14,6 +14,7 @@ export default function App() {
   const [showAbout, setShowAbout] = useState(false)
   const [consentGiven, setConsentGiven] = useState(true) // по умолчанию true, проверим в useEffect
   const [telegramId, setTelegramId] = useState(null)
+  const [startArt, setStartArt] = useState(null)
 
   // Применяем тему Telegram и считываем id пользователя
   useEffect(() => {
@@ -26,6 +27,10 @@ export default function App() {
       }
       const userId = tg.initDataUnsafe?.user?.id
       if (userId) setTelegramId(String(userId))
+
+      // Deep link — открыть конкретный товар по артикулу
+      const startParam = tg.initDataUnsafe?.start_param
+      if (startParam) setStartArt(startParam)
     }
   }, [])
 
@@ -127,6 +132,8 @@ export default function App() {
             onToggleFavorite={toggleFavorite}
             onRefreshFavorites={refreshFavorites}
             telegramId={telegramId}
+            startArt={startArt}
+            onStartArtHandled={() => setStartArt(null)}
           />
         ) : (
           <OwnerView />

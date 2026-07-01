@@ -17,7 +17,7 @@ export default function ItemCard({ item, inCart, onAdd, onRemove, isFavorite, on
   function handleShare(e) {
     e.stopPropagation()
     const text = `${item.name} — ${item.price.toLocaleString('ru-RU')} ₽`
-    const botUrl = 'https://t.me/nezhniy_resale_bot'
+    const botUrl = `https://t.me/nezhniy_resale_bot/app?startapp=${item.art}`
     const tg = window.Telegram?.WebApp
     if (tg?.openTelegramLink) {
       tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(botUrl)}&text=${encodeURIComponent(text)}`)

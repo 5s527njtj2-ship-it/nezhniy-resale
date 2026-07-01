@@ -15,7 +15,7 @@ const SORT_OPTIONS = [
   { id: 'price_desc', label: 'Дороже' },
 ]
 
-export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClearCart, favorites, onToggleFavorite, onRefreshFavorites, telegramId }) {
+export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClearCart, favorites, onToggleFavorite, onRefreshFavorites, telegramId, startArt, onStartArtHandled }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [section, setSection] = useState('women')
@@ -73,6 +73,26 @@ export default function BuyerView({ cart, onAddToCart, onRemoveFromCart, onClear
     const t = setTimeout(fetchItems, search ? 400 : 0)
     return () => clearTimeout(t)
   }, [fetchItems, search])
+
+  // Deep link — открыть товар по артикулу из ссылки
+  useEffect(() => {
+    if (!startArt || loading) return
+    // Ищем среди загруженных
+    const found = items.find(i => i.art === startArt)
+    if (found) {
+      setOpenedItem(found)
+      onStartArtHandled()
+    } else {
+      // Товар может быть в другом разделе — подгрузим отдельно
+      apiFetch(`/items?search=${startArt}`)
+        .then(data => {
+          const match = data.find(i => i.art === startArt)
+          if (match) setOpenedItem(match)
+        })
+        .catch(() => {})
+        .finally(() => onStartArtHandled())
+    }
+  }, [startArt, loading])
 
   function sortItems(list, sort) {
     const copy = [...list]
